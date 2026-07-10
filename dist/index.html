@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+
+  <!--
+    viewport-fit=cover is the critical piece for iOS Safari.
+    Without it, Safari never populates the env(safe-area-inset-*)
+    CSS variables that react-native-safe-area-context reads on web, so
+    SafeAreaView's top inset silently becomes 0 and content renders
+    under the iPhone's status bar / notch.
+  -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+
+  <title>WhatsFlow</title>
+  <link rel="stylesheet" href="/web-globals.css" />
+<meta name="theme-color" content="#0EA5E9">
+<link rel="icon" href="/favicon.ico" /></head>
+<body>
+  <noscript>
+    <form
+      action=""
+      style="
+        background-color: #fff;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+      "
+    >
+      <div
+        style="
+          font-size: 18px;
+          font-family: Helvetica, sans-serif;
+          line-height: 24px;
+          margin: 10%;
+          width: 80%;
+        "
+      >
+        <p>Oh no! It looks like JavaScript is not enabled in your browser.</p>
+        <p style="margin: 20px 0;">
+          <button
+            type="submit"
+            style="
+              background-color: #0EA5E9;
+              border-radius: 100px;
+              border: none;
+              box-shadow: none;
+              color: #fff;
+              cursor: pointer;
+              font-weight: bold;
+              line-height: 20px;
+              padding: 6px 16px;
+            "
+          >
+            Reload
+          </button>
+        </p>
+      </div>
+    </form>
+  </noscript>
+
+  <!-- The root element for the Expo app. -->
+  <div id="root"></div>
+<script src="/_expo/static/js/web/index-a2701e31e6989f61220b6b8d366a9f36.js" defer></script>
+</body>
+</html>

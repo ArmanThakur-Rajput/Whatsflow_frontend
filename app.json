@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "WhatsFlow",
+    "slug": "leadmanagementapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 150,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-asset"
+    ],
+    "android": {
+      "package": "com.leadmanagementapp",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.leadmanagementapp",
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "infoPlist": {
+        "UIViewControllerBasedStatusBarAppearance": true
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "WhatsFlow",
+      "shortName": "WhatsFlow",
+      "themeColor": "#0EA5E9",
+      "backgroundColor": "#F5F7FA"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "15751e65-ebd5-4c7a-bd0c-821489f59e0e"
+      }
+    }
+  },
+  "owner": "velta"
+}

@@ -1,0 +1,52 @@
+/*
+ * Web-only global CSS — matches Expo's own reference web template
+ * for safe-area handling.
+ *
+ * Two separate bugs, same root cause (missing root-level CSS):
+ *
+ * 1. Android Chrome: clipped content / ScrollView won't scroll.
+ *    RN Web's <ScrollView> is a <div style="overflow:auto">. For a
+ *    browser to let that div scroll, html/body/#root all need a height
+ *    the browser can resolve to a real pixel value. `flex:1` on the
+ *    React Native side only works once this chain exists.
+ *
+ * 2. iOS Safari: header content sits under the status bar / notch.
+ *    useSafeAreaInsets() on web reads env(safe-area-inset-*), which
+ *    Safari only populates when viewport-fit=cover is set (see
+ *    public/index.html) AND the page's own height accounts for it.
+ */
+
+html,
+body,
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  flex-shrink: 0;
+  flex-basis: auto;
+  flex-grow: 1;
+  display: flex;
+  flex: 1;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  /* Accounts for the iOS notch/status-bar safe area so content isn't
+     pushed off the bottom of the page by exactly that amount. */
+  height: calc(100% + env(safe-area-inset-top));
+}
+
+body {
+  display: flex;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
