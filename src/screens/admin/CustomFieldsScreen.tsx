@@ -222,14 +222,14 @@ export default function CustomFieldsScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
-  const { fields, isLoading, fetchFields, deleteField, reactivateField } = useCustomFieldStore();
+  const { fields, isLoading, fetchFields, deleteField } = useCustomFieldStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingField, setEditingField] = useState<CustomFieldDefinition | null>(null);
 
   const load = useCallback(() => {
-    fetchFields(true); // includeInactive — admin needs to see + reactivate removed fields
+    fetchFields(); // only active fields — deleted fields are gone permanently
   }, []);
 
   useFocusEffect(
@@ -268,18 +268,7 @@ export default function CustomFieldsScreen() {
       });
   };
 
-  const handleReactivate = (field: CustomFieldDefinition) => {
-    reactivateField(field._id)
-      .then(() => {
-        Toast.show({ type: 'success', text1: 'Field reactivated ✅' });
-      })
-      .catch(() => {
-        Toast.show({ type: 'error', text1: 'Failed to reactivate field' });
-      });
-  };
-
-  const activeFields = fields.filter((f) => f.isActive).sort((a, b) => a.order - b.order);
-  const inactiveFields = fields.filter((f) => !f.isActive);
+  const activeFields = fields.slice().sort((a: any, b: any) => a.order - b.order);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -349,31 +338,7 @@ export default function CustomFieldsScreen() {
           ))
         )}
 
-        {inactiveFields.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Removed Fields</Text>
-            <Text style={styles.sectionSubtitle}>
-              Leads that already had a value for these still show it. Reactivate to use them on new leads again.
-            </Text>
-            {inactiveFields.map((field) => (
-              <View key={field._id} style={[styles.fieldCard, styles.fieldCardInactive]}>
-                <View style={[styles.fieldIconWrap, styles.fieldIconWrapInactive]}>
-                  <Ionicons name={TYPE_META[field.type].icon as any} size={20} color={colors.textLight} />
-                </View>
-                <View style={styles.fieldInfo}>
-                  <Text style={[styles.fieldName, styles.fieldNameInactive]}>{field.label}</Text>
-                  <Text style={styles.fieldMeta}>{TYPE_META[field.type].label}</Text>
-                </View>
-                {isAdmin && (
-                  <TouchableOpacity style={styles.restoreBtn} onPress={() => handleReactivate(field)}>
-                    <Ionicons name="refresh" size={14} color={colors.primary} />
-                    <Text style={styles.restoreText}>Restore</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-          </>
-        )}
+
 
         <View style={{ height: spacing.xxxl }} />
       </ScrollView>
@@ -490,17 +455,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     justifyContent: 'center', alignItems: 'center',
   },
-  restoreBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: spacing.sm, paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.primary + '12',
-  },
-  restoreText: {
-    fontSize: typography.xs,
-    fontWeight: typography.semiBold,
-    color: colors.primary,
-  },
+
 
   sectionTitle: {
     fontSize: typography.sm,

@@ -6,7 +6,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { File, Paths } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import Toast from 'react-native-toast-message';
@@ -101,39 +100,58 @@ export default function AddDataScreen() {
   const [uploading, setUploading] = useState(false);
   const [pickedFileName, setPickedFileName] = useState<string | null>(null);
   const [pickedFileUri, setPickedFileUri] = useState<string | null>(null);
+  const [pickedFileBlob, setPickedFileBlob] = useState<Blob | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
 
   // ── Download template ─────────────────────────────────────────────────────
-  // Uses new expo-file-system v54 API: File.downloadFileAsync downloads the
-  // CSV directly to cache, then Sharing opens the system share sheet.
+  // Platform.OS === 'web'  → fetch + anchor click (browser native download)
+  // Platform.OS === 'android'/'ios' → expo-file-system v54 File API + Sharing
   const handleDownloadTemplate = async () => {
     setDownloading(true);
     try {
       const { storage } = await import('../../utils/storage');
       const token = await storage.getToken();
+      const url = axiosInstance.defaults.baseURL + '/leads/import/template';
 
-      // Destination file in cache directory
-      const destination = new File(Paths.cache, 'leads_template.csv');
-
-      // Remove stale file so download doesn't throw DestinationAlreadyExists
-      if (destination.exists) {
-        destination.delete();
-      }
-
-      const downloaded = await File.downloadFileAsync(
-        axiosInstance.defaults.baseURL + '/leads/import/template',
-        Paths.cache,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(downloaded.uri, {
-          mimeType: 'text/csv',
-          dialogTitle: 'Save Leads Template',
-          UTI: 'public.comma-separated-values-text',
+      if (Platform.OS === 'web') {
+        // ── Web: browser fetch → Blob → anchor download ──────────────────
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        if (!response.ok) throw new Error('Server returned ' + response.status);
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = 'leads_template.csv';
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(objectUrl);
+
+        Toast.show({ type: 'success', text1: 'Template downloaded!' });
+
       } else {
-        Toast.show({ type: 'success', text1: 'Template saved to cache!' });
+        // ── Android / iOS: expo-file-system v54 File API ─────────────────
+        const { File, Paths } = await import('expo-file-system');
+
+        const destination = new File(Paths.cache, 'leads_template.csv');
+        if (destination.exists) destination.delete();
+
+        const downloaded = await File.downloadFileAsync(url, Paths.cache, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(downloaded.uri, {
+            mimeType: 'text/csv',
+            dialogTitle: 'Save Leads Template',
+            UTI: 'public.comma-separated-values-text',
+          });
+        } else {
+          Toast.show({ type: 'success', text1: 'Template saved!' });
+        }
       }
     } catch (err: any) {
       Toast.show({
@@ -147,8 +165,32 @@ export default function AddDataScreen() {
   };
 
   // ── Pick CSV file ─────────────────────────────────────────────────────────
+  // Web: <input type="file"> since DocumentPicker doesn't work reliably on web
+  // Android/iOS: expo-document-picker
   const handlePickFile = async () => {
     setSummary(null);
+
+    if (Platform.OS === 'web') {
+      // Web: hidden file input
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,text/csv';
+      input.onchange = async (e: any) => {
+        const file: File = e.target.files?.[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+          Toast.show({ type: 'error', text1: 'Only CSV files are allowed' });
+          return;
+        }
+        setPickedFileName(file.name);
+        setPickedFileBlob(file);
+        setPickedFileUri('web-blob');
+      };
+      input.click();
+      return;
+    }
+
+    // Android / iOS
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['text/csv', 'text/comma-separated-values', 'text/plain', '*/*'],
@@ -165,6 +207,7 @@ export default function AddDataScreen() {
 
       setPickedFileName(asset.name);
       setPickedFileUri(asset.uri);
+      setPickedFileBlob(null);
     } catch (err: any) {
       Toast.show({ type: 'error', text1: 'Could not open file picker' });
     }
@@ -177,15 +220,19 @@ export default function AddDataScreen() {
     setUploading(true);
     setSummary(null);
     try {
-      const token = axiosInstance.defaults.headers?.common?.['Authorization'] ||
-        (await import('../../utils/storage')).storage.getToken?.();
-
       const formData = new FormData();
-      formData.append('file', {
-        uri: pickedFileUri,
-        name: pickedFileName,
-        type: 'text/csv',
-      } as any);
+
+      if (Platform.OS === 'web' && pickedFileBlob) {
+        // Web: append Blob directly
+        formData.append('file', pickedFileBlob, pickedFileName);
+      } else {
+        // Android / iOS: append with uri
+        formData.append('file', {
+          uri: pickedFileUri,
+          name: pickedFileName,
+          type: 'text/csv',
+        } as any);
+      }
 
       const res = await axiosInstance.post('/leads/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -194,6 +241,7 @@ export default function AddDataScreen() {
       setSummary(res.data.summary);
       setPickedFileName(null);
       setPickedFileUri(null);
+      setPickedFileBlob(null);
 
       if (res.data.summary.imported > 0) {
         Toast.show({
@@ -305,7 +353,11 @@ export default function AddDataScreen() {
                 {hasFile ? pickedFileName : 'Tap to select CSV file'}
               </Text>
               {hasFile && (
-                <TouchableOpacity onPress={() => { setPickedFileName(null); setPickedFileUri(null); }}>
+                <TouchableOpacity onPress={() => {
+                  setPickedFileName(null);
+                  setPickedFileUri(null);
+                  setPickedFileBlob(null);
+                }}>
                   <Ionicons name="close-circle" size={20} color={colors.textLight} />
                 </TouchableOpacity>
               )}
