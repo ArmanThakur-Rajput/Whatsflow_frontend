@@ -14,7 +14,7 @@ RUN if [ -n "$EXPO_PUBLIC_API_URL" ]; then \
       echo "EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL" > .env; \
     fi
 
-RUN npx expo export --platform web
+RUN ./node_modules/.bin/expo export --platform web
 
 # ─── Stage 2: Serve ───────────────────────────────────────────────────────────
 FROM nginx:alpine
