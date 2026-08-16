@@ -395,6 +395,7 @@ export default function AdminLeadsScreen() {
   const [activeFilter, setActiveFilter] = useState('New');
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [todayCount, setTodayCount] = useState<number | null>(null);
 
   // Build YYYY-MM-DD from local calendar (not UTC) to avoid midnight IST shift
   const getTodayFilter = () => {
@@ -415,18 +416,28 @@ export default function AdminLeadsScreen() {
     try {
       const filters: Record<string, string> = {};
       if (searchVal) {
-        // Search mode — no status filter, no date filter (search across all leads)
         filters.search = searchVal;
       } else {
-        // Normal mode — status chip + today's date filter
         if (filterVal !== 'Pending') {
           filters.dateFrom = getTodayFilter();
           filters.dateTo = getTodayFilter();
         }
         filters.status = filterVal;
       }
-      const { leads: data } = await fetchAllLeads(filters);
-      setLeads(data);
+
+      // Always fetch today's total count separately — independent of search/filter
+      const todayFilters: Record<string, string> = {
+        dateFrom: getTodayFilter(),
+        dateTo: getTodayFilter(),
+        limit: '1',
+      };
+      const [mainRes, countRes] = await Promise.all([
+        fetchAllLeads(filters),
+        fetchAllLeads(todayFilters),
+      ]);
+
+      setLeads(mainRes.leads);
+      setTodayCount(countRes.total ?? 0);
     } catch (err: any) {
       console.error('AdminLeadsScreen fetchAllLeads error:', err.message);
       setLeads([]);
@@ -555,7 +566,7 @@ useFocusEffect(
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>
-            Today's Leads <Text style={styles.countInline}>({leads.length})</Text>
+            Today's Leads <Text style={styles.countInline}>({todayCount ?? leads.length})</Text>
           </Text>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
@@ -579,6 +590,8 @@ useFocusEffect(
             placeholderTextColor={colors.textLight}
             value={search}
             onChangeText={setSearch}
+            selectionColor={colors.primary}
+            cursorColor={colors.primary}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
