@@ -34,6 +34,7 @@ import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import SendNotificationScreen from '../screens/admin/SendNotificationScreen';
 import ThemePickerScreen from '../screens/common/ThemePickerScreen';
 import AddNoteScreen from '../screens/employee/AddNoteScreen';
+import EditLeadScreen from '../screens/employee/EditLeadScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -98,6 +99,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="LeadArchive" component={LeadArchiveScreen} />
       <Stack.Screen name="MonthlyLeads" component={MonthlyLeadsScreen} />
       <Stack.Screen name="AddNote" component={AddNoteScreen} />
+      <Stack.Screen name="EditLead" component={EditLeadScreen} />
       <Stack.Screen name="AdminSchedule" component={AdminScheduleScreen} />
       <Stack.Screen name="CustomFields" component={CustomFieldsScreen} />
       <Stack.Screen name="AddData" component={AddDataScreen} />
