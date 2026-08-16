@@ -384,13 +384,17 @@ export default function AdminLeadsScreen() {
     setIsLoading(true);
     try {
       const filters: Record<string, string> = {};
-      // Only pending shows all-time leads; every other chip = today only
-      if (filterVal !== 'Pending') {
-        filters.dateFrom = getTodayFilter();
-        filters.dateTo = getTodayFilter();
+      if (searchVal) {
+        // Search mode — no status filter, no date filter (search across all leads)
+        filters.search = searchVal;
+      } else {
+        // Normal mode — status chip + today's date filter
+        if (filterVal !== 'Pending') {
+          filters.dateFrom = getTodayFilter();
+          filters.dateTo = getTodayFilter();
+        }
+        filters.status = filterVal;
       }
-      if (searchVal) filters.search = searchVal;
-      filters.status = filterVal;
       const { leads: data } = await fetchAllLeads(filters);
       setLeads(data);
     } catch (err: any) {

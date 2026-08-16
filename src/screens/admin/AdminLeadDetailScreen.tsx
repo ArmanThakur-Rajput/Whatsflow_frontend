@@ -3,10 +3,13 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Linking, ActivityIndicator, Modal,
 } from 'react-native';
+import { CrossPlatformDateTimePicker } from '../../components/common';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
+import axiosInstance from '../../api/axiosInstance';
 import { useLeadStore } from '../../store/leadStore';
 import { useCustomFieldStore } from '../../store/customFieldStore';
 import { colors } from '../../theme/colors';
@@ -62,6 +65,7 @@ function formatCustomFieldValue(value: any, type: string): string {
   return String(value);
 }
 
+/* ── Mobile-only date picker (no native dependency) ── */
 export default function AdminLeadDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -71,6 +75,7 @@ export default function AdminLeadDetailScreen() {
   const { fields: customFields, fetchFields } = useCustomFieldStore();
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     if (leadId) fetchLeadById(leadId);
@@ -121,6 +126,28 @@ export default function AdminLeadDetailScreen() {
         type: 'error',
         text1: 'Update Failed ❌',
         text2: 'Could not update status',
+      });
+    }
+  };
+
+  const handleVisitorDate = async (selectedDate: Date) => {
+    try {
+      const dateStr = selectedDate.toLocaleDateString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+      });
+      await axiosInstance.patch(`/leads/${leadId}/visitor-date`, { visitorDate: dateStr });
+      await fetchLeadById(leadId);
+      Toast.show({
+        type: 'success',
+        text1: 'Visitor Date Updated ✅',
+        text2: `Set to ${dateStr}`,
+        visibilityTime: 2000,
+      });
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: 'Update Failed ❌',
+        text2: 'Could not update visitor date',
       });
     }
   };
@@ -183,6 +210,17 @@ export default function AdminLeadDetailScreen() {
                 : 'Unassigned'}
             </Text>
           </View>
+
+          {/* Visitor Date — cyan badge, tap to edit */}
+          <TouchableOpacity
+            style={styles.visitorDateBtn}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Ionicons name="calendar" size={14} color={colors.white} />
+            <Text style={styles.visitorDateText}>
+              {lead.visitorDate ? lead.visitorDate : 'Set Visitor Date'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
@@ -257,8 +295,6 @@ export default function AdminLeadDetailScreen() {
           <Text style={styles.cardTitle}>Lead Information</Text>
           <InfoRow icon="globe" label="Source" value={lead.source} />
           <InfoRow icon="megaphone" label="Campaign" value={lead.campaign} />
-          <InfoRow icon="calendar-outline" label="Visitor Date"
-            value={lead.visitorDate} />
           <InfoRow icon="time-outline" label="Created"
             value={new Date(lead.createdAt).toLocaleDateString('en-IN', {
               day: 'numeric', month: 'short', year: 'numeric'
@@ -324,6 +360,17 @@ export default function AdminLeadDetailScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Visitor Date Picker — web uses native html input, native uses modal */}
+      {showDatePicker && (
+        <CrossPlatformDateTimePicker
+          visible={showDatePicker}
+          value={new Date()}
+          mode="date"
+          onChange={(selected) => handleVisitorDate(selected)}
+          onClose={() => setShowDatePicker(false)}
+        />
+      )}
 
       {/* Timeline Modal */}
       <Modal
@@ -468,6 +515,16 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: typography.sm, fontWeight: typography.medium,
     color: colors.textPrimary, marginTop: 2,
+  },
+  visitorDateBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: spacing.sm, backgroundColor: '#06B6D4',
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderRadius: 20, marginTop: spacing.xs,
+  },
+  visitorDateText: {
+    fontSize: typography.sm, color: colors.white,
+    fontWeight: typography.semiBold,
   },
   noteItem: {
     backgroundColor: colors.background, borderRadius: 10,
