@@ -162,15 +162,23 @@ export default function AdminLeadDetailScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Lead Details</Text>
-        <TouchableOpacity
-          style={styles.assignHeaderBtn}
-          onPress={() => navigation.navigate('AssignLead', {
-            leadId: lead._id,
-            currentEmployee: lead.assignedTo,
-          })}
-        >
-          <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.editHeaderBtn}
+            onPress={() => navigation.navigate('EditLead', { leadId })}
+          >
+            <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.assignHeaderBtn}
+            onPress={() => navigation.navigate('AssignLead', {
+              leadId: lead._id,
+              currentEmployee: lead.assignedTo,
+            })}
+          >
+            <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -439,6 +447,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: typography.lg, fontWeight: typography.bold,
     color: colors.textPrimary,
+  },
+  headerRight: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+  },
+  editHeaderBtn: {
+    width: 40, height: 40, justifyContent: 'center',
+    alignItems: 'center', backgroundColor: colors.primaryLight,
+    borderRadius: 10,
   },
   assignHeaderBtn: {
     width: 40, height: 40, justifyContent: 'center',
