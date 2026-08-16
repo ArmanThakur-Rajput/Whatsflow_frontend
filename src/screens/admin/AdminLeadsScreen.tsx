@@ -62,6 +62,36 @@ const EMPTY_FORM = {
 };
 
 // ─────────────────────────────────────────────
+// HighlightText — highlights matched query inside a string
+// ─────────────────────────────────────────────
+function HighlightText({
+  text,
+  query,
+  textStyle,
+}: {
+  text: string;
+  query: string;
+  textStyle?: any;
+}) {
+  if (!query || !text) return <Text style={textStyle}>{text}</Text>;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  return (
+    <Text style={textStyle}>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <Text key={i} style={{ backgroundColor: '#FFF176', color: '#1a1a1a', fontWeight: '700' }}>
+            {part}
+          </Text>
+        ) : (
+          <Text key={i}>{part}</Text>
+        )
+      )}
+    </Text>
+  );
+}
+
+// ─────────────────────────────────────────────
 // AddLeadModal
 // ─────────────────────────────────────────────
 interface Employee { _id: string; name: string; }
@@ -451,6 +481,20 @@ useFocusEffect(
 
   const renderLead = ({ item }: { item: any }) => {
     const statusColor = STATUS_COLORS[item.status] || colors.primary;
+
+    // Build matched custom field entries to show under the card when searching
+    const matchedCustomFields: { label: string; value: string }[] = [];
+    if (search && item.customFields && typeof item.customFields === 'object') {
+      const q = search.toLowerCase();
+      Object.entries(item.customFields).forEach(([key, val]) => {
+        if (typeof val === 'string' && val.toLowerCase().includes(q)) {
+          // Use key as label (prettified) since we don't have defs here
+          const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+          matchedCustomFields.push({ label, value: val });
+        }
+      });
+    }
+
     return (
       <TouchableOpacity
         style={styles.leadCard}
@@ -464,13 +508,24 @@ useFocusEffect(
               <Text style={styles.avatarText}>{item.name?.charAt(0).toUpperCase()}</Text>
             </View>
             <View style={styles.leadInfo}>
-              <Text style={styles.leadName} numberOfLines={1}>{item.name}</Text>
-              <Text style={styles.leadPhone}>{item.phone}</Text>
+              <HighlightText text={item.name} query={search} textStyle={[styles.leadName, { flexShrink: 1 }]} />
+              <HighlightText text={item.phone} query={search} textStyle={styles.leadPhone} />
+              {!!item.city && (
+                <HighlightText text={item.city} query={search} textStyle={styles.leadPhone} />
+              )}
             </View>
             <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
               <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
             </View>
           </View>
+
+          {/* Matched custom fields — only shown when search is active */}
+          {matchedCustomFields.map((cf) => (
+            <View key={cf.label} style={styles.customFieldRow}>
+              <Text style={styles.customFieldLabel}>{cf.label}: </Text>
+              <HighlightText text={cf.value} query={search} textStyle={styles.customFieldValue} />
+            </View>
+          ))}
 
           <View style={styles.cardBottom}>
             <View style={styles.assignedChip}>
@@ -486,7 +541,6 @@ useFocusEffect(
               <TouchableOpacity style={[styles.actionBtn, styles.waBtn]} onPress={() => Linking.openURL(`https://wa.me/91${item.phone}`)}>
                 <Ionicons name="logo-whatsapp" size={15} color="#25D366" />
               </TouchableOpacity>
-
             </View>
           </View>
         </View>
@@ -682,6 +736,9 @@ const styles = StyleSheet.create({
   waBtn: { backgroundColor: '#E8FFF1' },
   emptyState: { alignItems: 'center', paddingTop: 100, gap: spacing.sm },
   emptyText: { fontSize: typography.lg, color: colors.textSecondary, fontWeight: typography.semiBold },
+  customFieldRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  customFieldLabel: { fontSize: typography.xs, color: colors.textLight, fontWeight: '600' },
+  customFieldValue: { fontSize: typography.xs, color: colors.textSecondary },
 });
 
 const addStyles = StyleSheet.create({
