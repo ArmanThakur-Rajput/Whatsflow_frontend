@@ -54,7 +54,7 @@ export const useLeadCardSettingsStore = create<LeadCardSettingsStore>((set, get)
   fetchSettings: async () => {
     set({ isLoading: true });
     try {
-      const res = await axiosInstance.get('/users/lead-card-settings');
+      const res = await axiosInstance.get('/auth/lead-card-settings');
       set({
         fields: res.data.fields || [],
         isLoading: false,
@@ -69,7 +69,7 @@ export const useLeadCardSettingsStore = create<LeadCardSettingsStore>((set, get)
   saveSettings: async (fields: LeadCardField[]) => {
     set({ isSaving: true });
     try {
-      await axiosInstance.put('/users/lead-card-settings', { fields });
+      await axiosInstance.put('/auth/lead-card-settings', { fields });
       set({ fields, isSaving: false });
     } catch (err: any) {
       console.error('saveLeadCardSettings error:', err.response?.data?.message || err.message);
