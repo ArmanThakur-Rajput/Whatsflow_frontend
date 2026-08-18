@@ -537,6 +537,7 @@ useFocusEffect(
         onConfirm: async () => {
           try {
             await softDeleteLead(item._id);
+            setLeads((prev) => prev.filter((l) => l._id !== item._id));
             Toast.show({ type: 'success', text1: 'Lead Deleted' });
           } catch {
             Toast.show({ type: 'error', text1: 'Delete Failed', text2: 'Please try again.' });
