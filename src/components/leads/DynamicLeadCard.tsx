@@ -128,7 +128,7 @@ export const DynamicLeadCard = React.memo(({
                   <Ionicons
                     name={isCustom ? 'code-slash-outline' : iconName as any}
                     size={11}
-                    color={isCustom ? colors.warning : colors.textSecondary}
+                    color={isCustom ? colors.textPrimary : colors.textSecondary}
                     style={styles.fieldIcon}
                   />
                   <Text
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     flex: 1,
   },
-  customFieldValue: { color: colors.warning },
+  customFieldValue: { color: colors.textPrimary },
   statusBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
