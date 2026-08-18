@@ -14,6 +14,7 @@ import { useCustomFieldStore } from '../../store/customFieldStore';
 import { useLeadCardSettingsStore } from '../../store/leadCardSettingsStore';
 import { DynamicLeadCard } from '../../components/leads/DynamicLeadCard';
 import { DynamicCustomFields } from '../../components/common';
+import { showConfirmModal } from '../../components/common/ConfirmModal';
 import { LeadStatus } from '../../types/lead.types';
 import { keyboardAvoidingBehavior } from '../../utils/platform';
 import { colors } from '../../theme/colors';
@@ -390,7 +391,7 @@ export default function AdminLeadsScreen() {
   // and subtle scoping bugs in production. Switch to fetchAllLeads from adminStore
   // which hits /admin/leads (getAllLeads) — the purpose-built admin endpoint.
   const { fetchAllLeads } = useAdminStore();
-  const { createLead } = useLeadStore(); // still needed for AddLeadModal
+  const { createLead, softDeleteLead } = useLeadStore(); // still needed for AddLeadModal
 
   // Lead card settings
   const {
@@ -526,6 +527,24 @@ useFocusEffect(
       .filter((f) => f.enabled)
       .sort((a, b) => a.order - b.order);
 
+    const handleDelete = () => {
+      showConfirmModal({
+        title: 'Delete Lead',
+        message: `"${item.name}" ko delete karna chahte ho? Yeh Archive mein chala jayega.`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        destructive: true,
+        onConfirm: async () => {
+          try {
+            await softDeleteLead(item._id);
+            Toast.show({ type: 'success', text1: 'Lead Deleted' });
+          } catch {
+            Toast.show({ type: 'error', text1: 'Delete Failed', text2: 'Please try again.' });
+          }
+        },
+      });
+    };
+
     return (
       <DynamicLeadCard
         lead={item}
@@ -533,6 +552,14 @@ useFocusEffect(
         onPress={() => navigation.navigate('AdminLeadDetail', { leadId: item._id })}
         assignedToName={item.assignedTo?.name || 'Unassigned'}
         searchQuery={search}
+        extraActions={
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={handleDelete}
+          >
+            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          </TouchableOpacity>
+        }
       />
     );
   };
@@ -672,7 +699,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight, padding: spacing.sm,
     borderRadius: 10, borderWidth: 1, borderColor: colors.primary + '40',
   },
-  deleteBtn: { backgroundColor: '#FFF0F0' },
+  deleteBtn: {
+    backgroundColor: '#FFF0F0',
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   searchContainer: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.white, marginHorizontal: spacing.base,

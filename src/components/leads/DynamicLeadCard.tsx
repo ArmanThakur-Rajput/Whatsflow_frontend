@@ -125,12 +125,7 @@ export const DynamicLeadCard = React.memo(({
 
               return (
                 <View key={field.key} style={styles.fieldRow}>
-                  <Ionicons
-                    name={isCustom ? 'code-slash-outline' : iconName as any}
-                    size={11}
-                    color={isCustom ? colors.textPrimary : colors.textSecondary}
-                    style={styles.fieldIcon}
-                  />
+                  <Text style={styles.fieldIcon}>•</Text>
                   <Text
                     style={[styles.fieldValue, isCustom && styles.customFieldValue]}
                     numberOfLines={1}
