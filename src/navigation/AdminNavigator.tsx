@@ -33,6 +33,7 @@ import PrivacyScreen from '../screens/common/PrivacyScreen';
 import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import SendNotificationScreen from '../screens/admin/SendNotificationScreen';
 import ThemePickerScreen from '../screens/common/ThemePickerScreen';
+import LeadCardSettingsScreen from '../screens/common/LeadCardSettingsScreen';
 import AddNoteScreen from '../screens/employee/AddNoteScreen';
 import EditLeadScreen from '../screens/employee/EditLeadScreen';
 
@@ -104,6 +105,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="CustomFields" component={CustomFieldsScreen} />
       <Stack.Screen name="AddData" component={AddDataScreen} />
       <Stack.Screen name="ThemePicker" component={ThemePickerScreen} />
+      <Stack.Screen name="LeadCardSettings" component={LeadCardSettingsScreen} />
       <Stack.Screen name="Sidebar" component={SidebarScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />

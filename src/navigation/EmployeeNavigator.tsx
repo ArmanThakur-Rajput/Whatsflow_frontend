@@ -23,6 +23,7 @@ import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import BookAppointmentScreen from '../screens/employee/BookAppointmentScreen';
 import CustomFieldsScreen from '../screens/admin/CustomFieldsScreen';
 import ThemePickerScreen from '../screens/common/ThemePickerScreen';
+import LeadCardSettingsScreen from '../screens/common/LeadCardSettingsScreen';
 import EmployeeArchiveScreen from '../screens/employee/EmployeeArchiveScreen';
 import { colors } from '../theme/colors';
 
@@ -81,6 +82,7 @@ export default function EmployeeNavigator() {
       <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
       <Stack.Screen name="CustomFields" component={CustomFieldsScreen} />
       <Stack.Screen name="ThemePicker" component={ThemePickerScreen} />
+      <Stack.Screen name="LeadCardSettings" component={LeadCardSettingsScreen} />
       <Stack.Screen name="Sidebar" component={SidebarScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />

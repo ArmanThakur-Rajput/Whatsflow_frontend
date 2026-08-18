@@ -5,6 +5,8 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { Lead } from '../../types/lead.types';
+import { useLeadCardSettingsStore } from '../../store/leadCardSettingsStore';
+import { DynamicLeadCard } from './DynamicLeadCard';
 
 const STATUS_COLORS: Record<string, string> = {
   New: '#6B7280',
@@ -35,6 +37,40 @@ export const SimpleLeadCard = React.memo(({
   /** Omit to render this card without any pin badge/border (e.g. Pending Leads, which doesn't support pinning). */
   onTogglePin?: () => void;
   /** When provided, shown next to the source chip (e.g. created/updated date). */
+  dateLabel?: string;
+}) => {
+  const { fields: cardFields, fetchSettings, hasFetched } = useLeadCardSettingsStore();
+
+  React.useEffect(() => {
+    if (!hasFetched) fetchSettings();
+  }, []);
+
+  const enabledFields = React.useMemo(
+    () => [...cardFields].filter((f) => f.enabled).sort((a, b) => a.order - b.order),
+    [cardFields],
+  );
+
+  return (
+    <DynamicLeadCard
+      lead={lead}
+      cardFields={enabledFields}
+      onPress={onPress}
+      onTogglePin={onTogglePin}
+      dateLabel={dateLabel}
+    />
+  );
+});
+
+// ---- Legacy implementation kept below for reference (unused) ----
+const _LegacySimpleLeadCard = React.memo(({
+  lead,
+  onPress,
+  onTogglePin,
+  dateLabel,
+}: {
+  lead: Lead;
+  onPress: () => void;
+  onTogglePin?: () => void;
   dateLabel?: string;
 }) => {
   const statusColor = STATUS_COLORS[lead.status] || colors.primary;

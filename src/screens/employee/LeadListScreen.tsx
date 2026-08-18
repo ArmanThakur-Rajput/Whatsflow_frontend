@@ -18,6 +18,8 @@ import { Lead, LeadStatus } from '../../types/lead.types';
 import { useLeadStore } from '../../store/leadStore';
 import axiosInstance from '../../api/axiosInstance';
 import { CustomFieldDefinition } from '../../store/customFieldStore';
+import { useLeadCardSettingsStore } from '../../store/leadCardSettingsStore';
+import { DynamicLeadCard } from '../../components/leads/DynamicLeadCard';
 import {
   Sparkles,
   Flame,
@@ -519,6 +521,19 @@ export default function LeadListScreen() {
     isLoading, updateStatus, togglePin,
   } = useLeadStore();
 
+  // Lead card settings — fetch on mount, use for card rendering
+  const {
+    fields: cardFields,
+    fetchSettings: fetchCardSettings,
+    hasFetched: cardSettingsFetched,
+  } = useLeadCardSettingsStore();
+
+  React.useEffect(() => {
+    if (!cardSettingsFetched) {
+      fetchCardSettings();
+    }
+  }, []);
+
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<LeadStatus | 'New'>('New');
 
@@ -678,15 +693,18 @@ useFocusEffect(
       );
     }
     const lead = item as LeadItem;
+    const enabledFields = [...cardFields]
+      .filter((f) => f.enabled)
+      .sort((a, b) => a.order - b.order);
     return (
-      <LeadCard
+      <DynamicLeadCard
         lead={lead}
+        cardFields={enabledFields}
         onPress={() => navigation.navigate('LeadDetail', { leadId: lead._id })}
-        onUninterested={() => handleUninterested(lead)}
         onTogglePin={() => handleTogglePin(lead)}
       />
     );
-  }, []);
+  }, [cardFields]);
 
   const hasActiveFilters = Object.values(advancedFilters).some((v) => v !== '');
 

@@ -424,17 +424,29 @@ export default function LeadDetailScreen() {
           ) : null}
           <InfoRow icon="mail" label="Email" value={lead.email || ''} />
           <InfoRow icon="location" label="City" value={lead.city || ''} />
-          {customFields
-            .filter((f) => lead.customFields?.[f.key] !== undefined && lead.customFields?.[f.key] !== '')
-            .sort((a, b) => a.order - b.order)
-            .map((f) => (
-              <InfoRow
-                key={f._id}
-                icon="information-circle-outline"
-                label={f.label}
-                value={formatCustomFieldValue(lead.customFields?.[f.key], f.type)}
-              />
-            ))}
+          {/* Custom fields — rendered directly from lead's stored data so
+              values survive even if the field definition was deleted later.
+              Definition is used only for label + type (for date formatting);
+              if definition is gone we fall back to the raw key + string value. */}
+          {lead.customFields && Object.entries(
+            lead.customFields instanceof Map
+              ? Object.fromEntries(lead.customFields)
+              : (lead.customFields as Record<string, any>)
+          )
+            .filter(([, val]) => val !== undefined && val !== null && val !== '')
+            .map(([key, val]) => {
+              const def = customFields.find((f) => f.key === key);
+              const label = def?.label ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+              const type  = def?.type  ?? 'text';
+              return (
+                <InfoRow
+                  key={key}
+                  icon="information-circle-outline"
+                  label={label}
+                  value={formatCustomFieldValue(val, type)}
+                />
+              );
+            })}
         </View>
 
         {/* Lead Info */}

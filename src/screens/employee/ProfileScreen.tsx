@@ -88,6 +88,12 @@ export default function ProfileScreen() {
           />
           <View style={styles.divider} />
           <MenuItem
+            icon="albums-outline"
+            label="Lead Data Card"
+            onPress={() => navigation.navigate('LeadCardSettings')}
+          />
+          <View style={styles.divider} />
+          <MenuItem
             icon="color-palette-outline"
             label="App Theme"
             onPress={() => navigation.navigate('ThemePicker')}

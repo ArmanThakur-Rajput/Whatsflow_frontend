@@ -11,6 +11,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLeadStore } from '../../store/leadStore';
 import { useAdminStore } from '../../store/adminStore';
 import { useCustomFieldStore } from '../../store/customFieldStore';
+import { useLeadCardSettingsStore } from '../../store/leadCardSettingsStore';
+import { DynamicLeadCard } from '../../components/leads/DynamicLeadCard';
 import { DynamicCustomFields } from '../../components/common';
 import { LeadStatus } from '../../types/lead.types';
 import { keyboardAvoidingBehavior } from '../../utils/platform';
@@ -389,6 +391,20 @@ export default function AdminLeadsScreen() {
   // which hits /admin/leads (getAllLeads) — the purpose-built admin endpoint.
   const { fetchAllLeads } = useAdminStore();
   const { createLead } = useLeadStore(); // still needed for AddLeadModal
+
+  // Lead card settings
+  const {
+    fields: cardFields,
+    fetchSettings: fetchCardSettings,
+    hasFetched: cardSettingsFetched,
+  } = useLeadCardSettingsStore();
+
+  React.useEffect(() => {
+    if (!cardSettingsFetched) {
+      fetchCardSettings();
+    }
+  }, []);
+
   const [leads, setLeads] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -506,56 +522,18 @@ useFocusEffect(
       });
     }
 
+    const enabledFields = [...cardFields]
+      .filter((f) => f.enabled)
+      .sort((a, b) => a.order - b.order);
+
     return (
-      <TouchableOpacity
-        style={styles.leadCard}
+      <DynamicLeadCard
+        lead={item}
+        cardFields={enabledFields}
         onPress={() => navigation.navigate('AdminLeadDetail', { leadId: item._id })}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.colorBar, { backgroundColor: statusColor }]} />
-        <View style={styles.cardContent}>
-          <View style={styles.cardTop}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{item.name?.charAt(0).toUpperCase()}</Text>
-            </View>
-            <View style={styles.leadInfo}>
-              <HighlightText text={item.name} query={search} textStyle={[styles.leadName, { flexShrink: 1 }]} />
-              <HighlightText text={item.phone} query={search} textStyle={styles.leadPhone} />
-              {!!item.city && (
-                <HighlightText text={item.city} query={search} textStyle={styles.leadPhone} />
-              )}
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-              <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
-            </View>
-          </View>
-
-          {/* Matched custom fields — only shown when search is active */}
-          {matchedCustomFields.map((cf) => (
-            <View key={cf.label} style={styles.customFieldRow}>
-              <Text style={styles.customFieldLabel}>{cf.label}: </Text>
-              <HighlightText text={cf.value} query={search} textStyle={styles.customFieldValue} />
-            </View>
-          ))}
-
-          <View style={styles.cardBottom}>
-            <View style={styles.assignedChip}>
-              <Ionicons name="person-outline" size={12} color={colors.textSecondary} />
-              <Text style={styles.assignedText} numberOfLines={1}>
-                {item.assignedTo?.name || 'Unassigned'}
-              </Text>
-            </View>
-            <View style={styles.actionBtns}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => Linking.openURL(`tel:${item.phone}`)}>
-                <Ionicons name="call" size={15} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, styles.waBtn]} onPress={() => Linking.openURL(`https://wa.me/91${item.phone}`)}>
-                <Ionicons name="logo-whatsapp" size={15} color="#25D366" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
+        assignedToName={item.assignedTo?.name || 'Unassigned'}
+        searchQuery={search}
+      />
     );
   };
 
