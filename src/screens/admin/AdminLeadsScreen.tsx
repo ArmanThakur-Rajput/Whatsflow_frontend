@@ -867,7 +867,7 @@ export default function AdminLeadsScreen() {
   // regardless of which status tab or date filter is active.
   const loadAllLeadsForOptions = React.useCallback(async () => {
     try {
-      const res = await fetchAllLeads({ limit: '500' });
+      const res = await fetchAllLeads({ limit: '99999' });
       setAllLeadsRef(res.leads ?? []);
     } catch {
       // non-critical — dropdown just falls back to text input
@@ -883,7 +883,7 @@ export default function AdminLeadsScreen() {
   ) => {
     setIsLoading(true);
     try {
-      const filters: Record<string, string> = {};
+      const filters: Record<string, string> = { limit: '99999' };
 
       if (searchVal.trim()) {
         filters.search = searchVal.trim();
@@ -893,9 +893,6 @@ export default function AdminLeadsScreen() {
         if (extraFilters.dateFrom || extraFilters.dateTo) {
           if (extraFilters.dateFrom) filters.dateFrom = extraFilters.dateFrom;
           if (extraFilters.dateTo)   filters.dateTo   = extraFilters.dateTo;
-        } else if (filterVal !== 'Pending') {
-          filters.dateFrom = getTodayFilter();
-          filters.dateTo   = getTodayFilter();
         }
 
         if (extraFilters.customFields) {
