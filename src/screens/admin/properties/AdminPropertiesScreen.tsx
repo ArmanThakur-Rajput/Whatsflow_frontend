@@ -58,46 +58,36 @@ function buildWhatsAppDraft(p: Property): string {
 
 // ── Property Card ─────────────────────────────────────────────────────────────
 const PropertyCard = ({
-  item, onEdit, onWhatsApp, onDelete,
+  item, onEdit, onWhatsApp, onDelete, onOpen, search,
 }: {
   item: Property;
   onEdit: () => void;
   onWhatsApp: () => void;
   onDelete: () => void;
+  onOpen: () => void;
+  search: string;
 }) => {
-  const st = STATUS_COLORS[item.status] || STATUS_COLORS.available;
   const icon = TYPE_ICONS[item.propertyType] || 'business';
   return (
-    <View style={styles.card}>
+    <TouchableOpacity activeOpacity={0.88} onPress={onOpen} style={styles.card}>
       {/* Header row */}
       <View style={styles.cardHeader}>
         <View style={styles.cardIconWrap}>
           <Ionicons name={icon as any} size={20} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.projectName}</Text>
+          <HighlightText text={item.projectName || ''} query={search} style={styles.cardTitle} numberOfLines={1} />
           <Text style={styles.cardSub} numberOfLines={1}>
-            <Ionicons name="location-outline" size={11} /> {item.location}
+            <Ionicons name="location-outline" size={11} /> <HighlightText text={item.location || ''} query={search} style={styles.cardSub} />
           </Text>
-        </View>
-        <View style={[styles.statusPill, { backgroundColor: st.bg }]}>
-          <Text style={[styles.statusText, { color: st.text }]}>{st.label}</Text>
         </View>
       </View>
 
       {/* Key info chips */}
       <View style={styles.chipRow}>
-        <Chip icon="cash-outline" label={formatPrice(item.price)} />
-        <Chip icon="layers-outline" label={item.propertyType} />
-        <Chip icon="business-outline" label={`Floor ${item.floor}`} />
-        {item.parking !== 'None' && <Chip icon="car-outline" label={item.parking} />}
-      </View>
-
-      <View style={styles.chipRow}>
-        {item.carpetArea  && <Chip icon="resize-outline" label={`Carpet: ${item.carpetArea}`} />}
-        {item.buildupArea && <Chip icon="resize-outline" label={`Buildup: ${item.buildupArea}`} />}
-        <Chip icon="checkmark-circle-outline" label={`Sanction: ${item.sanction}`} />
-        <Chip icon="water-outline" label={item.water} />
+        <Chip icon="cash-outline" label={formatPrice(item.price)} query={search} />
+        <Chip icon="layers-outline" label={`${item.propertyType}${item.flatConfig ? ` · ${item.flatConfig}` : ''}`} query={search} />
+        {item.carpetArea ? <Chip icon="resize-outline" label={`Carpet ${item.carpetArea} sqft`} query={search} /> : null}
       </View>
 
       {/* Action row */}
@@ -115,14 +105,21 @@ const PropertyCard = ({
           <Text style={[styles.actionLabel, { color: '#EF4444' }]}>Delete</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
-const Chip = ({ icon, label }: { icon: string; label: string }) => (
+const HighlightText = ({ text, query, style, numberOfLines }: { text: string; query: string; style?: any; numberOfLines?: number }) => {
+  const q = query.trim();
+  if (!q || !text.toLowerCase().includes(q.toLowerCase())) return <Text style={style} numberOfLines={numberOfLines}>{text}</Text>;
+  const index = text.toLowerCase().indexOf(q.toLowerCase());
+  return <Text style={style} numberOfLines={numberOfLines}>{text.slice(0, index)}<Text style={{ color: '#0EA5E9', textDecorationLine: 'underline', fontWeight: '800', backgroundColor: '#E0F2FE' }}>{text.slice(index, index + q.length)}</Text>{text.slice(index + q.length)}</Text>;
+};
+
+const Chip = ({ icon, label, query = '' }: { icon: string; label: string; query?: string }) => (
   <View style={styles.chip}>
     <Ionicons name={icon as any} size={11} color={colors.textSecondary} />
-    <Text style={styles.chipText}>{label}</Text>
+    <HighlightText text={label} query={query} style={styles.chipText} />
   </View>
 );
 
@@ -133,18 +130,13 @@ export default function AdminPropertiesScreen() {
   const { properties, stats, isLoading, fetchProperties, fetchStats, deleteProperty, exportCSV } = usePropertyStore();
 
   const [search, setSearch] = React.useState('');
-  const [filterType, setFilterType] = React.useState('');
-  const [filterStatus, setFilterStatus] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
 
   const load = React.useCallback(() => {
-    const f: Record<string, string> = {};
-    if (filterType)   f.propertyType = filterType;
-    if (filterStatus) f.status       = filterStatus;
-    fetchProperties(f);
+    fetchProperties();
     fetchStats();
-  }, [filterType, filterStatus]);
+  }, [fetchProperties, fetchStats]);
 
   useFocusEffect(React.useCallback(() => { load(); }, [load]));
 
@@ -158,12 +150,11 @@ export default function AdminPropertiesScreen() {
   const filtered = React.useMemo(() => {
     if (!search.trim()) return properties;
     const q = search.toLowerCase();
-    return properties.filter(
-      (p) =>
-        p.projectName.toLowerCase().includes(q) ||
-        p.location.toLowerCase().includes(q) ||
-        p.propertyType.toLowerCase().includes(q)
-    );
+    return properties.filter((p) => Object.values(p).some((value) => {
+      if (value === null || value === undefined) return false;
+      const searchable = Array.isArray(value) ? value.join(' ') : typeof value === 'object' ? JSON.stringify(value) : String(value);
+      return searchable.toLowerCase().includes(q);
+    }));
   }, [properties, search]);
 
   const handleDelete = (id: string, name: string) => {
@@ -185,10 +176,7 @@ export default function AdminPropertiesScreen() {
   const handleExportCSV = async () => {
     try {
       setExporting(true);
-      const f: Record<string, string> = {};
-      if (filterType)   f.propertyType = filterType;
-      if (filterStatus) f.status       = filterStatus;
-      const csv = await exportCSV(f);
+      const csv = await exportCSV();
       const path = FileSystem.documentDirectory + 'properties.csv';
       await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
       await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export Properties CSV' });
@@ -199,10 +187,7 @@ export default function AdminPropertiesScreen() {
     }
   };
 
-  const TYPE_FILTERS = ['', 'Flat', 'Shop', 'Plot'];
-  const STATUS_FILTERS = ['', 'available', 'sold', 'rented'];
-
-  return (
+    return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -247,35 +232,6 @@ export default function AdminPropertiesScreen() {
         ) : null}
       </View>
 
-      {/* ── Filters ── */}
-      <View style={styles.filterRow}>
-        {/* Type filter */}
-        {TYPE_FILTERS.map((t) => (
-          <TouchableOpacity
-            key={t || 'all-type'}
-            style={[styles.filterChip, filterType === t && styles.filterChipActive]}
-            onPress={() => setFilterType(t)}
-          >
-            <Text style={[styles.filterChipText, filterType === t && styles.filterChipTextActive]}>
-              {t || 'All Types'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.filterRow}>
-        {STATUS_FILTERS.map((s) => (
-          <TouchableOpacity
-            key={s || 'all-status'}
-            style={[styles.filterChip, filterStatus === s && styles.filterChipActive]}
-            onPress={() => setFilterStatus(s)}
-          >
-            <Text style={[styles.filterChipText, filterStatus === s && styles.filterChipTextActive]}>
-              {s ? STATUS_COLORS[s]?.label : 'All Status'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* ── List ── */}
       {isLoading && !refreshing ? (
         <View style={styles.centered}>
@@ -296,6 +252,8 @@ export default function AdminPropertiesScreen() {
           renderItem={({ item }) => (
             <PropertyCard
               item={item}
+              search={search}
+              onOpen={() => navigation.navigate('PropertyDetail', { propertyId: item._id })}
               onEdit={() => navigation.navigate('AddProperty', { property: item })}
               onWhatsApp={() => handleWhatsApp(item)}
               onDelete={() => handleDelete(item._id, item.projectName)}
@@ -318,11 +276,6 @@ const styles = StyleSheet.create({
   addBtn:          { backgroundColor: colors.primary, width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   searchWrap:      { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, marginHorizontal: spacing.base, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
   searchInput:     { flex: 1, paddingVertical: 10, paddingHorizontal: spacing.sm, fontSize: typography.sm, color: colors.textPrimary },
-  filterRow:       { flexDirection: 'row', paddingHorizontal: spacing.base, gap: spacing.xs, marginBottom: spacing.xs },
-  filterChip:      { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  filterChipActive:{ backgroundColor: colors.primary, borderColor: colors.primary },
-  filterChipText:  { fontSize: typography.xs, color: colors.textSecondary },
-  filterChipTextActive: { color: colors.white, fontWeight: typography.semiBold },
   card:            { backgroundColor: colors.white, borderRadius: 16, padding: spacing.base, marginBottom: spacing.md, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, borderWidth: 1, borderColor: '#F0F0F0' },
   cardHeader:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   cardIconWrap:    { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
