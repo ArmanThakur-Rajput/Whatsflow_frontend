@@ -565,9 +565,6 @@ export default function AgentScreen() {
           </View>
           {/* Actions */}
           <View style={s.hActions}>
-            <TouchableOpacity style={s.hBtn} accessibilityLabel="Property requests" onPress={() => navigation.navigate('PropertyRequests')}>
-              <Ionicons name="clipboard-outline" size={20} color="#fff" />
-            </TouchableOpacity>
             <TouchableOpacity style={s.hBtn} onPress={() => {
               setIsMuted(m => { const n = !m; if (n) Speech.stop(); Toast.show({ type: 'info', text1: n ? '🔇 Muted' : '🔊 Unmuted', position: 'top' }); return n; });
             }}>

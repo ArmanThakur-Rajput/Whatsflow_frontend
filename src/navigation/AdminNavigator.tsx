@@ -22,9 +22,9 @@ import AdminScheduleScreen from '../screens/admin/AdminScheduleScreen';
 import CustomFieldsScreen from '../screens/admin/CustomFieldsScreen';
 import AddDataScreen from '../screens/admin/AddDataScreen';
 import AdminPropertiesScreen from '../screens/admin/AdminPropertiesScreen';
+import PropertyRequestsScreen from '../screens/admin/PropertyRequestsScreen';
 // Agent Screen (replaces Properties)
 import AgentScreen from '../screens/admin/AgentScreen';
-import PropertyRequestsScreen from '../screens/admin/PropertyRequestsScreen';
 
 // Properties screens
 import PropertiesDashboardScreen from '../screens/admin/properties/PropertiesDashboardScreen';
@@ -95,7 +95,7 @@ function AdminTabs() {
       <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Tab.Screen name="AdminLeads" component={AdminLeadsScreen} />
       <Tab.Screen name="AdminAgent" component={AgentScreen} />
-      <Tab.Screen name="AdminProperties" component={PropertiesDashboardScreen} />
+      <Tab.Screen name="AdminProperties" component={AdminPropertiesScreen} />
       <Tab.Screen name="AdminProfile" component={AdminProfileScreen} />
     </Tab.Navigator>
   );
