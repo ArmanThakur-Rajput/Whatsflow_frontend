@@ -1,19 +1,10 @@
-import React, { useCallback, useState } from 'react';
-import {
-  ActivityIndicator, FlatList, RefreshControl, SafeAreaView, StatusBar,
-  StyleSheet, Text, TouchableOpacity, View, Alert,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-
-const WEBHOOK_SECRET_KEY = 'riva-secret-2024';
-const REQUESTS_WEBHOOK_URL =
-  process.env.EXPO_PUBLIC_PROPERTY_REQUESTS_WEBHOOK_URL ||
-  'https://whatsapp-lead-n8n.ndna0p.easypanel.host/webhook/property-requests';
-const COMPLETE_WEBHOOK_URL =
-  process.env.EXPO_PUBLIC_PROPERTY_REQUEST_COMPLETE_WEBHOOK_URL ||
-  'https://whatsapp-lead-n8n.ndna0p.easypanel.host/webhook/property-request-complete';
+import { useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
+import axiosInstance from '../../api/axiosInstance';
 
 type PropertyRequest = {
   _id?: string;
@@ -26,270 +17,111 @@ type PropertyRequest = {
   price?: string | number;
   society?: string;
   status?: string;
+  propertyType?: string;
   createdAt?: string;
-  [key: string]: any;
 };
 
-const BLUE = '#1746A2';
-const BG = '#F3F6FB';
-
-function display(value: unknown, fallback = 'Not specified') {
-  if (value === null || value === undefined || String(value).trim() === '') return fallback;
-  return String(value);
-}
+const BLUE = '#2157C9';
 
 export default function PropertyRequestsScreen() {
   const navigation = useNavigation<any>();
   const [requests, setRequests] = useState<PropertyRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  const loadRequests = useCallback(async (pull = false) => {
-    if (pull) setRefreshing(true); else setLoading(true);
+  const loadRequests = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
     setError('');
     try {
-      const response = await fetch(REQUESTS_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': WEBHOOK_SECRET_KEY,
-        },
-        body: JSON.stringify({ action: 'list_pending', status: 'pending' }),
-      });
-      if (!response.ok) throw new Error(`Request list failed (HTTP ${response.status})`);
-      const payload = await response.json();
-      const rows = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.requests)
-          ? payload.requests
-          : Array.isArray(payload?.data)
-            ? payload.data
-            : [];
-      setRequests(rows.filter((row: PropertyRequest) =>
-        String(row.status ?? '').toLowerCase() === 'pending'
-      ));
+      // This endpoint must be implemented by the app backend and read MongoDB request_notif.
+      const response = await axiosInstance.get('/property-requests');
+      const payload = response.data;
+      const rows = Array.isArray(payload) ? payload : (payload?.requests ?? payload?.data ?? payload?.items ?? []);
+      if (!Array.isArray(rows)) throw new Error('Unexpected response from server');
+      setRequests(rows.filter((r: PropertyRequest) => String(r.status ?? '').toLowerCase() === 'pending'));
     } catch (e: any) {
-      setError(e?.message || 'Could not load property requests.');
+      setError(e?.response?.data?.message || e?.message || 'Failed to load requests');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => {
-    loadRequests();
-  }, [loadRequests]));
+  useEffect(() => { loadRequests(); }, [loadRequests]);
 
-  const markComplete = (item: PropertyRequest) => {
-    Alert.alert(
-      'Mark request complete?',
-      `This will mark ${item.requestId} as complete and remove it from the pending list.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          onPress: async () => {
-            setCompletingId(item.requestId);
-            try {
-              const response = await fetch(COMPLETE_WEBHOOK_URL, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-api-key': WEBHOOK_SECRET_KEY,
-                },
-                body: JSON.stringify({
-                  action: 'complete',
-                  requestId: item.requestId,
-                  status: 'complete',
-                }),
-              });
-              if (!response.ok) throw new Error(`Update failed (HTTP ${response.status})`);
-              const result = await response.json().catch(() => ({}));
-              if (result?.success === false || result?.updated === false) {
-                throw new Error(result?.message || 'The request was not updated in MongoDB.');
-              }
-              setRequests(current => current.filter(r => r.requestId !== item.requestId));
-            } catch (e: any) {
-              Alert.alert(
-                'Could not complete request',
-                `${e?.message || 'Please try again.'}\n\nCheck that the n8n completion webhook is active and updates request_notif by requestId.`
-              );
-            } finally {
-              setCompletingId(null);
-            }
-          },
-        },
-      ]
-    );
+  const completeRequest = (item: PropertyRequest) => {
+    if (!item.requestId) {
+      Toast.show({ type: 'error', text1: 'Request ID missing', text2: 'This request cannot be safely updated.' });
+      return;
+    }
+    Alert.alert('Mark as complete?', 'This request will be removed from the pending list.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Complete', onPress: async () => {
+        setUpdatingId(item.requestId);
+        try {
+          await axiosInstance.patch(`/property-requests/${encodeURIComponent(item.requestId)}/complete`);
+          setRequests(current => current.filter(r => r.requestId !== item.requestId));
+          Toast.show({ type: 'success', text1: 'Request completed' });
+        } catch (e: any) {
+          Toast.show({ type: 'error', text1: 'Could not update request', text2: e?.response?.data?.message || e?.message || 'Please try again.' });
+        } finally {
+          setUpdatingId(null);
+        }
+      } },
+    ]);
   };
 
-  const renderItem = ({ item }: { item: PropertyRequest }) => {
-    const busy = completingId === item.requestId;
-    return (
-      <View style={styles.card}>
-        <View style={styles.cardTop}>
-          <View style={styles.homeIcon}>
-            <Ionicons name="home-outline" size={21} color={BLUE} />
-          </View>
-          <View style={styles.requestMeta}>
-            <Text style={styles.requestId} numberOfLines={1}>{item.requestId}</Text>
-            <View style={styles.pendingPill}>
-              <View style={styles.pendingDot} />
-              <Text style={styles.pendingText}>Pending</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.completeButton, busy && styles.completeDisabled]}
-            onPress={() => markComplete(item)}
-            disabled={!!completingId}
-            accessibilityRole="button"
-            accessibilityLabel={`Mark ${item.requestId} complete`}
-          >
-            {busy
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Ionicons name="checkmark" size={23} color="#fff" />}
+  const renderItem = ({ item }: { item: PropertyRequest }) => (
+    <View style={styles.card}>
+      <View style={styles.cardMain}>
+        <View style={styles.cardTitleRow}>
+          <Text style={styles.society} numberOfLines={2}>{item.society || item.location || 'Property requirement'}</Text>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Mark request complete" style={styles.checkButton} disabled={updatingId === item.requestId} onPress={() => completeRequest(item)}>
+            {updatingId === item.requestId ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="checkmark" size={22} color="#fff" />}
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.location} numberOfLines={2}>
-          {display(item.location, 'Location not specified')}
-        </Text>
-
-        <View style={styles.detailsGrid}>
-          <Detail icon="bed-outline" label="BHK" value={display(item.bhk)} />
-          <Detail icon="wallet-outline" label="Budget" value={display(item.budget ?? item.price)} />
-          <Detail icon="business-outline" label="Society" value={display(item.society)} />
+        <Text style={styles.location}><Ionicons name="location-outline" size={14} color="#64748B" /> {item.location || 'Location not specified'}</Text>
+        <View style={styles.chips}>
+          {!!item.bhk && <View style={styles.chip}><Text style={styles.chipText}>{item.bhk} BHK</Text></View>}
+          {!!(item.budget ?? item.price) && <View style={styles.chip}><Text style={styles.chipText}>₹ {item.budget ?? item.price}</Text></View>}
+          {!!item.propertyType && <View style={styles.chip}><Text style={styles.chipText}>{item.propertyType}</Text></View>}
         </View>
-        {item.sessionId ? (
-          <Text style={styles.session}>Session: {item.sessionId}</Text>
-        ) : null}
+        <Text style={styles.requestId}>ID: {item.requestId}</Text>
       </View>
-    );
-  };
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={BLUE} />
-      <LinearGradient colors={[BLUE, '#2563EB']} style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={styles.headerIcon}>
-          <Ionicons name="clipboard-outline" size={22} color="#fff" />
-        </View>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>Property Requests</Text>
-          <Text style={styles.subtitle}>Pending requirements from MongoDB</Text>
-        </View>
-        <View style={styles.countPill}><Text style={styles.countText}>{requests.length}</Text></View>
+      <LinearGradient colors={['#1947A9', '#2563EB']} style={styles.header}>
+        <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()} accessibilityLabel="Go back"><Ionicons name="arrow-back" size={23} color="#fff" /></TouchableOpacity>
+        <View style={styles.headerIcon}><Ionicons name="clipboard-outline" size={23} color="#fff" /></View>
+        <View style={styles.headerText}><Text style={styles.headerTitle}>Property Requests</Text><Text style={styles.headerSub}>Pending requirements from MongoDB</Text></View>
+        <View style={styles.count}><Text style={styles.countText}>{requests.length}</Text></View>
       </LinearGradient>
-
-      <View style={styles.content}>
-        <View style={styles.sectionRow}>
-          <View>
-            <Text style={styles.sectionTitle}>Needs attention</Text>
-            <Text style={styles.sectionSub}>Tap the tick when a request is handled.</Text>
-          </View>
-          <TouchableOpacity style={styles.refreshButton} onPress={() => loadRequests(true)} disabled={refreshing}>
-            {refreshing
-              ? <ActivityIndicator size="small" color={BLUE} />
-              : <Ionicons name="refresh" size={19} color={BLUE} />}
-          </TouchableOpacity>
-        </View>
-
-        {loading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator size="large" color={BLUE} />
-            <Text style={styles.stateText}>Loading pending requests…</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerState}>
-            <View style={styles.emptyIcon}><Ionicons name="cloud-offline-outline" size={30} color="#DC2626" /></View>
-            <Text style={styles.emptyTitle}>Could not load requests</Text>
-            <Text style={styles.stateText}>{error}</Text>
-            <Text style={styles.hint}>The n8n list webhook must return pending documents from the request_notif collection.</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => loadRequests()}>
-              <Ionicons name="refresh" size={17} color="#fff" />
-              <Text style={styles.retryText}>Try again</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <FlatList
-            data={requests}
-            keyExtractor={(item, index) => item.requestId || item._id || item.id || String(index)}
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={requests.length ? styles.list : styles.emptyList}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadRequests(true)} tintColor={BLUE} />
-            }
-            ListEmptyComponent={
-              <View style={styles.centerState}>
-                <View style={styles.emptyIcon}><Ionicons name="checkmark-done-circle-outline" size={34} color="#16A34A" /></View>
-                <Text style={styles.emptyTitle}>All caught up!</Text>
-                <Text style={styles.stateText}>There are no pending property requests.</Text>
-              </View>
-            }
-          />
-        )}
+      <View style={styles.sectionHead}>
+        <View><Text style={styles.sectionTitle}>Needs attention</Text><Text style={styles.sectionSub}>Tap the tick when a request is handled.</Text></View>
+        <TouchableOpacity style={styles.refresh} onPress={() => loadRequests(true)} accessibilityLabel="Refresh requests"><Ionicons name="refresh" size={20} color={BLUE} /></TouchableOpacity>
       </View>
+      {loading ? <View style={styles.center}><ActivityIndicator size="large" color={BLUE} /><Text style={styles.muted}>Loading requests…</Text></View> : error ? (
+        <View style={styles.center}><View style={styles.emptyIcon}><Ionicons name="cloud-offline-outline" size={32} color="#DC2626" /></View><Text style={styles.emptyTitle}>Could not load requests</Text><Text style={styles.muted}>{error}</Text><Text style={styles.hint}>Confirm the backend endpoints are deployed and reachable.</Text><TouchableOpacity style={styles.retry} onPress={() => loadRequests()}><Ionicons name="refresh" size={17} color="#fff" /><Text style={styles.retryText}>Try again</Text></TouchableOpacity></View>
+      ) : requests.length === 0 ? (
+        <View style={styles.center}><View style={styles.emptyIcon}><Ionicons name="checkmark-done-circle-outline" size={34} color="#16A34A" /></View><Text style={styles.emptyTitle}>All caught up!</Text><Text style={styles.muted}>No pending property requests.</Text><TouchableOpacity style={styles.retry} onPress={() => loadRequests()}><Ionicons name="refresh" size={17} color="#fff" /><Text style={styles.retryText}>Refresh</Text></TouchableOpacity></View>
+      ) : <FlatList data={requests} keyExtractor={(item, index) => item.requestId || item._id || item.id || String(index)} renderItem={renderItem} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadRequests(true)} tintColor={BLUE} />} />}
     </SafeAreaView>
   );
 }
 
-function Detail({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <View style={styles.detail}>
-      <Ionicons name={icon as any} size={16} color="#64748B" />
-      <View style={styles.detailCopy}>
-        <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue} numberOfLines={2}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 16, gap: 10 },
-  backButton: { padding: 5, marginRight: 1 },
-  headerIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.17)', alignItems: 'center', justifyContent: 'center' },
-  headerCopy: { flex: 1 },
-  title: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  subtitle: { color: 'rgba(255,255,255,0.82)', fontSize: 11, marginTop: 3 },
-  countPill: { minWidth: 32, height: 32, borderRadius: 16, paddingHorizontal: 8, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  countText: { color: BLUE, fontWeight: '800', fontSize: 14 },
-  content: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
-  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#172033' },
-  sectionSub: { color: '#64748B', fontSize: 12, marginTop: 4 },
-  refreshButton: { height: 38, width: 38, borderRadius: 12, backgroundColor: '#E4EDFF', alignItems: 'center', justifyContent: 'center' },
-  list: { paddingBottom: 28, gap: 12 },
-  emptyList: { flexGrow: 1, justifyContent: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#E5EAF2', shadowColor: '#1E293B', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  homeIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#EAF1FF', alignItems: 'center', justifyContent: 'center' },
-  requestMeta: { flex: 1, minWidth: 0 },
-  requestId: { fontSize: 12, color: '#334155', fontWeight: '800' },
-  pendingPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFF7E6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, marginTop: 5 },
-  pendingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D97706' },
-  pendingText: { color: '#92400E', fontSize: 10, fontWeight: '700' },
-  completeButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center' },
-  completeDisabled: { opacity: 0.55 },
-  location: { color: '#172033', fontSize: 16, fontWeight: '800', marginTop: 14, marginBottom: 12 },
-  detailsGrid: { gap: 10 },
-  detail: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
-  detailCopy: { flex: 1 },
-  detailLabel: { color: '#64748B', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  detailValue: { color: '#334155', fontSize: 13, fontWeight: '600', marginTop: 2 },
-  session: { color: '#94A3B8', fontSize: 10, marginTop: 12 },
-  centerState: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 36 },
-  emptyIcon: { width: 66, height: 66, borderRadius: 22, backgroundColor: '#E8F8EE', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  emptyTitle: { color: '#172033', fontSize: 17, fontWeight: '800', textAlign: 'center' },
-  stateText: { color: '#64748B', fontSize: 13, textAlign: 'center', lineHeight: 19, marginTop: 7 },
-  hint: { color: '#64748B', fontSize: 12, textAlign: 'center', lineHeight: 18, marginTop: 10 },
-  retryButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: BLUE, paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12, marginTop: 16 },
-  retryText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  safe: { flex: 1, backgroundColor: '#F2F5FA' },
+  header: { minHeight: 76, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+  back: { padding: 4 }, headerIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  headerText: { flex: 1 }, headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' }, headerSub: { color: '#DCE8FF', fontSize: 11, marginTop: 3 },
+  count: { backgroundColor: '#fff', minWidth: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }, countText: { color: BLUE, fontWeight: '800' },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 }, sectionTitle: { fontSize: 17, fontWeight: '800', color: '#111827' }, sectionSub: { fontSize: 12, color: '#64748B', marginTop: 5 }, refresh: { backgroundColor: '#E3ECFF', width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  list: { paddingHorizontal: 14, paddingBottom: 24 }, card: { backgroundColor: '#fff', borderRadius: 16, marginBottom: 11, borderWidth: 1, borderColor: '#E5EAF2', elevation: 2, shadowColor: '#0F172A', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }, cardMain: { padding: 15 }, cardTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 }, society: { flex: 1, color: '#111827', fontSize: 16, fontWeight: '800', paddingTop: 5 }, checkButton: { width: 39, height: 39, borderRadius: 13, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center' }, location: { color: '#64748B', fontSize: 13, marginTop: 9 }, chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 }, chip: { backgroundColor: '#EEF4FF', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6 }, chipText: { color: '#1D4ED8', fontSize: 12, fontWeight: '700' }, requestId: { color: '#94A3B8', fontSize: 10, marginTop: 12 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingBottom: 70 }, emptyIcon: { width: 66, height: 66, borderRadius: 20, backgroundColor: '#E6F8ED', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }, emptyTitle: { fontSize: 17, fontWeight: '800', color: '#111827', textAlign: 'center' }, muted: { color: '#64748B', fontSize: 13, textAlign: 'center', marginTop: 9, lineHeight: 20 }, hint: { color: '#64748B', fontSize: 12, textAlign: 'center', marginTop: 10, lineHeight: 18 }, retry: { marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1D4ED8', borderRadius: 12, paddingHorizontal: 18, paddingVertical: 12 }, retryText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 });
