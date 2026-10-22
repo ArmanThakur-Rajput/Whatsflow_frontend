@@ -565,6 +565,14 @@ export default function AgentScreen() {
           </View>
           {/* Actions */}
           <View style={s.hActions}>
+            <TouchableOpacity
+              style={[s.hBtn, s.requestsBtn]}
+              onPress={() => navigation.navigate('PropertyRequests')}
+              accessibilityRole="button"
+              accessibilityLabel="Open property requests"
+            >
+              <Ionicons name="clipboard-outline" size={20} color="#fff" />
+            </TouchableOpacity>
             <TouchableOpacity style={s.hBtn} onPress={() => {
               setIsMuted(m => { const n = !m; if (n) Speech.stop(); Toast.show({ type: 'info', text1: n ? '🔇 Muted' : '🔊 Unmuted', position: 'top' }); return n; });
             }}>
@@ -663,6 +671,7 @@ const s = StyleSheet.create({
   sText:      { fontSize: 10, color: 'rgba(255,255,255,0.8)', flex: 1 },
   hActions:   { flexDirection: 'row', alignItems: 'center', gap: 2 },
   hBtn:       { padding: 7 },
+  requestsBtn:{ backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 12, paddingHorizontal: 9 },
   stopBtn:    { backgroundColor: 'rgba(239,68,68,0.25)', borderRadius: 16, paddingHorizontal: 7 },
   hero:       { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 16, backgroundColor: C.chatBg },
   heroTitle:  { fontSize: 21, fontWeight: '800', color: C.text, marginTop: 20, letterSpacing: 0.2 },

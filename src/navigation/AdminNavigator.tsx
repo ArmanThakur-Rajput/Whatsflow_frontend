@@ -24,6 +24,7 @@ import AddDataScreen from '../screens/admin/AddDataScreen';
 import AdminPropertiesScreen from '../screens/admin/AdminPropertiesScreen';
 // Agent Screen (replaces Properties)
 import AgentScreen from '../screens/admin/AgentScreen';
+import PropertyRequestsScreen from '../screens/admin/PropertyRequestsScreen';
 
 // Properties screens
 import PropertiesDashboardScreen from '../screens/admin/properties/PropertiesDashboardScreen';
@@ -111,6 +112,7 @@ export default function AdminNavigator() {
       },
     }}>
       <Stack.Screen name="AdminTabs" component={AdminTabs} />
+      <Stack.Screen name="PropertyRequests" component={PropertyRequestsScreen} />
       {/* Leads */}
       <Stack.Screen name="AddEmployee" component={AddEmployeeScreen} />
       <Stack.Screen name="EmployeeDetail" component={EmployeeDetailScreen} />
