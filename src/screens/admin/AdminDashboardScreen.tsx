@@ -14,7 +14,6 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import axiosInstance from '../../api/axiosInstance';
 
 const StatCard = ({
   icon, label, value, bgColor, iconColor, onPress, suffix, subLabel, fullWidth,
@@ -60,7 +59,6 @@ export default function AdminDashboardScreen() {
   } = useAdminStore();
   const { stats: propertyStats, fetchStats: fetchPropertyStats } = usePropertyStore();
   const [refreshing, setRefreshing] = React.useState(false);
-  const [requestedPropertiesCount, setRequestedPropertiesCount] = React.useState(0);
   const [selectedBar, setSelectedBar] = React.useState<{ label: string; value: number } | null>(null);
   const [selectedPoint, setSelectedPoint] = React.useState<{ label: string; value: number } | null>(null);
 
@@ -69,20 +67,6 @@ export default function AdminDashboardScreen() {
   // into a sparse, hard-to-read chart.
   const CHART_WIDTH = Math.min(width, 480) - spacing.base * 2 - 32;
 
-  const fetchRequestedPropertiesCount = React.useCallback(async () => {
-    try {
-      const response = await axiosInstance.get('/property-requests');
-      const payload = response.data;
-      const rows = Array.isArray(payload) ? payload : (payload?.requests ?? payload?.data ?? payload?.items ?? []);
-      if (Array.isArray(rows)) {
-        setRequestedPropertiesCount(rows.filter((r: any) => String(r?.status ?? '').toLowerCase() === 'pending').length);
-      }
-    } catch (error) {
-      // Keep the dashboard usable if this endpoint is temporarily unavailable.
-      setRequestedPropertiesCount(0);
-    }
-  }, []);
-
   useFocusEffect(
     React.useCallback(() => {
       fetchAdminStats();
@@ -90,13 +74,12 @@ export default function AdminDashboardScreen() {
       fetchPerformanceDashboard();
       fetchMonthlyTrend();
       fetchPropertyStats();
-      fetchRequestedPropertiesCount();
-    }, [fetchRequestedPropertiesCount])
+    }, [])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAdminStats(), fetchEmployees(), fetchPerformanceDashboard(), fetchMonthlyTrend(), fetchPropertyStats(), fetchRequestedPropertiesCount()]);
+    await Promise.all([fetchAdminStats(), fetchEmployees(), fetchPerformanceDashboard(), fetchMonthlyTrend(), fetchPropertyStats()]);
     setRefreshing(false);
   };
 
@@ -194,7 +177,7 @@ export default function AdminDashboardScreen() {
           <StatCard icon="business" label="Total Properties" value={propertyStats.total || 0} bgColor="#FFFBEB" iconColor="#F59E0B" />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="clipboard-list" label="Requested Properties" value={requestedPropertiesCount} bgColor="#EFF6FF" iconColor="#3B82F6" onPress={() => navigation.navigate('PropertyRequests')} />
+          <StatCard icon="people" label="Upcoming Visitors" value={stats.upcomingVisitors || 0} bgColor="#EFF6FF" iconColor="#3B82F6" onPress={() => navigation.navigate('AdminVisitors')} />
           <StatCard icon="hourglass" label="Pending" value={stats.pendingLeads || 0} bgColor="#FEF3C7" iconColor="#B45309" />
         </View>
 
@@ -210,7 +193,6 @@ export default function AdminDashboardScreen() {
           <View style={styles.visitorsTextWrap}>
             <Text style={styles.visitorsTitle}>Upcoming Visitors</Text>
             <Text style={styles.visitorsSub}>Today's and upcoming scheduled visitors</Text>
-            <Text style={styles.visitorsCount}>{stats.upcomingVisitors || 0} scheduled visitors</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#0891B2" />
         </TouchableOpacity>
@@ -553,8 +535,5 @@ const styles = StyleSheet.create({
   },
   visitorsSub: {
     fontSize: typography.xs, color: '#0891B2', marginTop: 2,
-  },
-  visitorsCount: {
-    fontSize: typography.sm, fontWeight: typography.bold, color: '#0E7490', marginTop: 5,
   },
 });

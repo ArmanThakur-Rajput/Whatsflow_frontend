@@ -56,51 +56,54 @@ function buildWhatsAppDraft(p: Property): string {
   return lines.join('\n');
 }
 
+// Highlight the matching search text wherever it appears in a visible field.
+const HighlightText = ({ text, query, style }: { text: string; query: string; style: any }) => {
+  const value = String(text ?? '');
+  const q = query.trim();
+  if (!q || !value.toLowerCase().includes(q.toLowerCase())) return <Text style={style}>{value}</Text>;
+  const index = value.toLowerCase().indexOf(q.toLowerCase());
+  return (
+    <Text style={style}>
+      {value.slice(0, index)}
+      <Text style={styles.matchHighlight}>{value.slice(index, index + q.length)}</Text>
+      {value.slice(index + q.length)}
+    </Text>
+  );
+};
+
 // ── Property Card ─────────────────────────────────────────────────────────────
 const PropertyCard = ({
-  item, onEdit, onWhatsApp, onDelete,
+  item, onOpen, onEdit, onWhatsApp, onDelete, search,
 }: {
   item: Property;
+  onOpen: () => void;
   onEdit: () => void;
   onWhatsApp: () => void;
   onDelete: () => void;
+  search: string;
 }) => {
-  const st = STATUS_COLORS[item.status] || STATUS_COLORS.available;
   const icon = TYPE_ICONS[item.propertyType] || 'business';
   return (
-    <View style={styles.card}>
-      {/* Header row */}
+    <TouchableOpacity activeOpacity={0.88} onPress={onOpen} style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.cardIconWrap}>
           <Ionicons name={icon as any} size={20} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.projectName}</Text>
-          <Text style={styles.cardSub} numberOfLines={1}>
-            <Ionicons name="location-outline" size={11} /> {item.location}
-          </Text>
-        </View>
-        <View style={[styles.statusPill, { backgroundColor: st.bg }]}>
-          <Text style={[styles.statusText, { color: st.text }]}>{st.label}</Text>
+          <HighlightText text={item.projectName} query={search} style={styles.cardTitle} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            <Ionicons name="location-outline" size={11} color={colors.textSecondary} />
+            <HighlightText text={item.location} query={search} style={styles.cardSub} />
+          </View>
         </View>
       </View>
 
-      {/* Key info chips */}
       <View style={styles.chipRow}>
-        <Chip icon="cash-outline" label={formatPrice(item.price)} />
-        <Chip icon="layers-outline" label={item.propertyType} />
-        <Chip icon="business-outline" label={`Floor ${item.floor}`} />
-        {item.parking !== 'None' && <Chip icon="car-outline" label={item.parking} />}
+        <View style={styles.chip}><Ionicons name="cash-outline" size={11} color={colors.textSecondary} /><HighlightText text={formatPrice(item.price)} query={search} style={styles.chipText} /></View>
+        <View style={styles.chip}><Ionicons name="layers-outline" size={11} color={colors.textSecondary} /><HighlightText text={`${item.propertyType}${item.flatConfig ? ` · ${item.flatConfig}` : ''}`} query={search} style={styles.chipText} /></View>
+        {item.carpetArea ? <View style={styles.chip}><Ionicons name="resize-outline" size={11} color={colors.textSecondary} /><HighlightText text={`Carpet: ${item.carpetArea} sqft`} query={search} style={styles.chipText} /></View> : null}
       </View>
 
-      <View style={styles.chipRow}>
-        {item.carpetArea  && <Chip icon="resize-outline" label={`Carpet: ${item.carpetArea}`} />}
-        {item.buildupArea && <Chip icon="resize-outline" label={`Buildup: ${item.buildupArea}`} />}
-        <Chip icon="checkmark-circle-outline" label={`Sanction: ${item.sanction}`} />
-        <Chip icon="water-outline" label={item.water} />
-      </View>
-
-      {/* Action row */}
       <View style={styles.cardActions}>
         <TouchableOpacity style={styles.actionBtn} onPress={onEdit}>
           <Ionicons name="create-outline" size={16} color={colors.primary} />
@@ -115,7 +118,8 @@ const PropertyCard = ({
           <Text style={[styles.actionLabel, { color: '#EF4444' }]}>Delete</Text>
         </TouchableOpacity>
       </View>
-    </View>
+      <View style={styles.openHint}><Text style={styles.openHintText}>Tap to view details</Text><Ionicons name="chevron-forward" size={14} color={colors.textLight} /></View>
+    </TouchableOpacity>
   );
 };
 
@@ -133,18 +137,13 @@ export default function AdminPropertiesScreen() {
   const { properties, stats, isLoading, fetchProperties, fetchStats, deleteProperty, exportCSV } = usePropertyStore();
 
   const [search, setSearch] = React.useState('');
-  const [filterType, setFilterType] = React.useState('');
-  const [filterStatus, setFilterStatus] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
 
   const load = React.useCallback(() => {
-    const f: Record<string, string> = {};
-    if (filterType)   f.propertyType = filterType;
-    if (filterStatus) f.status       = filterStatus;
-    fetchProperties(f);
+    fetchProperties({});
     fetchStats();
-  }, [filterType, filterStatus]);
+  }, []);
 
   useFocusEffect(React.useCallback(() => { load(); }, [load]));
 
@@ -158,12 +157,16 @@ export default function AdminPropertiesScreen() {
   const filtered = React.useMemo(() => {
     if (!search.trim()) return properties;
     const q = search.toLowerCase();
-    return properties.filter(
-      (p) =>
-        p.projectName.toLowerCase().includes(q) ||
-        p.location.toLowerCase().includes(q) ||
-        p.propertyType.toLowerCase().includes(q)
-    );
+    return properties.filter((p) => {
+      const searchable = [
+        p.projectName, p.location, p.propertyType, p.flatConfig, p.price, p.floor,
+        p.carpetArea, p.buildupArea, p.buildingArea, p.plotArea, p.address, p.notes,
+        p.ownerName, p.ownerPhone, p.tenantPhone, p.parking, p.water, p.sanction,
+        p.status, p.intent, p.facing, p.wings, p.flatsOnFloor, p.gmapsLink,
+        ...(p.amenities || []),
+      ].filter(Boolean).join(' ').toLowerCase();
+      return searchable.includes(q);
+    });
   }, [properties, search]);
 
   const handleDelete = (id: string, name: string) => {
@@ -185,10 +188,7 @@ export default function AdminPropertiesScreen() {
   const handleExportCSV = async () => {
     try {
       setExporting(true);
-      const f: Record<string, string> = {};
-      if (filterType)   f.propertyType = filterType;
-      if (filterStatus) f.status       = filterStatus;
-      const csv = await exportCSV(f);
+      const csv = await exportCSV({});
       const path = FileSystem.documentDirectory + 'properties.csv';
       await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
       await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export Properties CSV' });
@@ -199,8 +199,6 @@ export default function AdminPropertiesScreen() {
     }
   };
 
-  const TYPE_FILTERS = ['', 'Flat', 'Shop', 'Plot'];
-  const STATUS_FILTERS = ['', 'available', 'sold', 'rented'];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -208,7 +206,7 @@ export default function AdminPropertiesScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Properties</Text>
-          <Text style={styles.headerSub}>{stats.total} total · {stats.available} available</Text>
+          <Text style={styles.headerSub}>{stats.total} properties</Text>
         </View>
         <View style={styles.headerBtns}>
           <TouchableOpacity
@@ -247,35 +245,6 @@ export default function AdminPropertiesScreen() {
         ) : null}
       </View>
 
-      {/* ── Filters ── */}
-      <View style={styles.filterRow}>
-        {/* Type filter */}
-        {TYPE_FILTERS.map((t) => (
-          <TouchableOpacity
-            key={t || 'all-type'}
-            style={[styles.filterChip, filterType === t && styles.filterChipActive]}
-            onPress={() => setFilterType(t)}
-          >
-            <Text style={[styles.filterChipText, filterType === t && styles.filterChipTextActive]}>
-              {t || 'All Types'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.filterRow}>
-        {STATUS_FILTERS.map((s) => (
-          <TouchableOpacity
-            key={s || 'all-status'}
-            style={[styles.filterChip, filterStatus === s && styles.filterChipActive]}
-            onPress={() => setFilterStatus(s)}
-          >
-            <Text style={[styles.filterChipText, filterStatus === s && styles.filterChipTextActive]}>
-              {s ? STATUS_COLORS[s]?.label : 'All Status'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* ── List ── */}
       {isLoading && !refreshing ? (
         <View style={styles.centered}>
@@ -296,6 +265,8 @@ export default function AdminPropertiesScreen() {
           renderItem={({ item }) => (
             <PropertyCard
               item={item}
+              search={search}
+              onOpen={() => navigation.navigate('PropertyDetail', { propertyId: item._id })}
               onEdit={() => navigation.navigate('AddProperty', { property: item })}
               onWhatsApp={() => handleWhatsApp(item)}
               onDelete={() => handleDelete(item._id, item.projectName)}
@@ -328,14 +299,15 @@ const styles = StyleSheet.create({
   cardIconWrap:    { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
   cardTitle:       { fontSize: typography.base, fontWeight: typography.bold, color: colors.textPrimary },
   cardSub:         { fontSize: typography.xs, color: colors.textSecondary, marginTop: 2 },
-  statusPill:      { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 10 },
-  statusText:      { fontSize: typography.xs, fontWeight: typography.semiBold },
   chipRow:         { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.xs },
   chip:            { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F5F5F5', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 8 },
   chipText:        { fontSize: 10, color: colors.textSecondary },
   cardActions:     { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#F0F0F0', marginTop: spacing.sm, paddingTop: spacing.sm, gap: spacing.sm },
   actionBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   actionLabel:     { fontSize: typography.xs, fontWeight: typography.semiBold },
+  matchHighlight: { color: '#075FE4', textDecorationLine: 'underline', backgroundColor: '#E8F1FF', fontWeight: '700' },
+  openHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 6 },
+  openHintText: { fontSize: 10, color: colors.textLight },
   centered:        { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60, gap: spacing.md },
   emptyText:       { fontSize: typography.base, color: colors.textSecondary },
 });

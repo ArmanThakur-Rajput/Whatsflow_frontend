@@ -107,9 +107,9 @@ export default function PropertyDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Photos */}
-        {property.photos.length > 0 && (
+        {(property.photos?.length ?? 0) > 0 && (
           <FlatList
-            data={property.photos}
+            data={property.photos || []}
             horizontal
             pagingEnabled
             keyExtractor={(u) => u}
