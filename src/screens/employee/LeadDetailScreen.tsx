@@ -23,11 +23,10 @@ const STATUS_COLORS: Record<string, string> = {
   'Contacted': '#F59E0B',
   'Not Interested': '#3B82F6',
   'Pending': '#D97706',
-  'Booked': '#059669',
 };
 
 const ALL_STATUSES: LeadStatus[] = [
-  'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked']
+  'New', 'Interested', 'Contacted', 'Not Interested', 'Pending']
 
 const TimelineItem = ({ icon, title, desc, time, isLast }: {
   icon: string; title: string;
@@ -127,12 +126,12 @@ export default function LeadDetailScreen() {
   }, []);
 
   useEffect(() => {
-    if (lead?.status === 'Booked' && leadId) {
+    if (leadId) {
       fetchLeadAppointment(leadId).then((appt) => {
         if (appt) setAppointment(appt);
       });
     }
-  }, [lead?.status, leadId]);
+  }, [leadId]);
 
   if (isLoading || !lead) {
     return (
@@ -160,15 +159,6 @@ export default function LeadDetailScreen() {
 
   const handleStatusChange = async (newStatus: LeadStatus) => {
     setShowStatusModal(false);
-    // If marking as Booked, navigate to book appointment screen
-    if (newStatus === 'Booked') {
-      navigation.navigate('BookAppointment', {
-        leadId,
-        leadName: lead.name,
-        leadPhone: lead.phone,
-      });
-      return;
-    }
     try {
       await updateStatus(leadId, newStatus);
       Toast.show({
@@ -202,10 +192,6 @@ export default function LeadDetailScreen() {
   };
 
   const handleDelete = () => {
-    if (lead.status === 'Booked') {
-      Toast.show({ type: 'error', text1: 'Cannot Delete', text2: 'Booked leads cannot be deleted' });
-      return;
-    }
     confirmDialog({
       title: 'Remove Lead',
       message: `Remove "${lead.name}" from your list? It will still be visible in your Archive and can be restored.`,
@@ -369,14 +355,6 @@ export default function LeadDetailScreen() {
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => {
-              if (lead.status === 'Booked') {
-                Toast.show({
-                  type: 'error',
-                  text1: 'Booked lead cannot be deleted',
-                });
-                return;
-              }
-
               handleDelete();
             }}
           >
@@ -458,33 +436,11 @@ export default function LeadDetailScreen() {
             label="Campaign"
             value={lead.campaign || ''}
           />
-          {lead.status === 'Booked' && appointment ? (
-            <>
-              <InfoRow
-                icon="calendar"
-                label="Appointment Date"
-                value={appointment.appointmentDate || '—'}
-              />
-              <InfoRow
-                icon="time"
-                label="Appointment Time"
-                value={appointment.appointmentTime || '—'}
-              />
-              {appointment.description ? (
-                <InfoRow
-                  icon="document-text-outline"
-                  label="Appointment Note"
-                  value={appointment.description}
-                />
-              ) : null}
-            </>
-          ) : (
-            <InfoRow
-              icon="calendar-outline"
-              label="Visitor Date"
-              value={lead.visitorDate || 'Not scheduled'}
-            />
-          )}
+          <InfoRow
+            icon="calendar-outline"
+            label="Visitor Date"
+            value={lead.visitorDate || 'Not scheduled'}
+          />
           <InfoRow
             icon="time-outline"
             label="Created"

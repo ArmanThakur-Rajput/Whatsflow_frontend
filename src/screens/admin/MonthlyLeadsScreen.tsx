@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
   Contacted: '#F59E0B',
   'Not Interested': '#3B82F6',
   Pending: '#D97706',
-  Booked: '#059669',
+
   Deleted: '#9CA3AF',
 };
 

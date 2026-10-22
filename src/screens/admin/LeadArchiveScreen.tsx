@@ -11,7 +11,7 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
-const STATUS_OPTIONS = ['All', 'New', 'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked', 'Deleted'];
+const STATUS_OPTIONS = ['All', 'New', 'Interested', 'Contacted', 'Not Interested', 'Pending', 'Deleted'];
 
 const STATUS_COLORS: Record<string, string> = {
   New: '#6B7280',
@@ -19,7 +19,6 @@ const STATUS_COLORS: Record<string, string> = {
   Contacted: '#F59E0B',
   'Not Interested': '#3B82F6',
   Pending: '#D97706',
-  Booked: '#059669',
   Deleted: '#9CA3AF',
 };
 

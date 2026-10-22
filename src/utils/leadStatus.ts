@@ -6,7 +6,6 @@ export const CURRENT_STATUS_COLORS: Record<string, string> = {
   Contacted: colors.statusContacted,
   'Not Interested': colors.statusNotInterested,
   Pending: '#D97706',
-  Booked: colors.statusBooked,
 };
 
 export const getDisplayStatus = (status?: string) => status || 'New';

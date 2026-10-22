@@ -71,6 +71,22 @@ export default function AdminProfileScreen() {
                     <MenuItem icon="paper-plane-outline" label="Send Notification" onPress={() => navigation.navigate('SendNotification')} />
                 </View>
 
+                {/* Employees */}
+                <Text style={styles.sectionTitle}>Employees</Text>
+                <View style={styles.menuCard}>
+                    <MenuItem
+                        icon="people-outline"
+                        label="Manage Employees"
+                        onPress={() => navigation.navigate('AdminEmployees')}
+                    />
+                    <View style={styles.divider} />
+                    <MenuItem
+                        icon="person-add-outline"
+                        label="Add Employee"
+                        onPress={() => navigation.navigate('AddEmployee')}
+                    />
+                </View>
+
                 {/* Data Management */}
                 <Text style={styles.sectionTitle}>Data Management</Text>
                 <View style={styles.menuCard}>
@@ -78,12 +94,6 @@ export default function AdminProfileScreen() {
                         icon="cloud-upload-outline"
                         label="Add Data"
                         onPress={() => navigation.navigate('AddData')}
-                    />
-                    <View style={styles.divider} />
-                    <MenuItem
-                        icon="layers-outline"
-                        label="Master Data"
-                        onPress={() => navigation.navigate('PropertyMasterData')}
                     />
                     <View style={styles.divider} />
                     <MenuItem

@@ -23,12 +23,11 @@ const STATUS_COLORS: Record<string, string> = {
   'Contacted': '#F59E0B',
   'Not Interested': '#3B82F6',
   'Pending': '#D97706',
-  'Booked': '#059669',
   'Deleted': '#9CA3AF',
 };
 
 const ALL_STATUSES: LeadStatus[] = [
-  'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked',
+  'New', 'Interested', 'Contacted', 'Not Interested', 'Pending',
 ];
 
 const TIMELINE_ICONS: Record<string, string> = {
@@ -103,15 +102,6 @@ export default function AdminLeadDetailScreen() {
 
   const handleStatusChange = async (newStatus: LeadStatus) => {
     setShowStatusModal(false);
-    if (newStatus === 'Booked') {
-      Toast.show({
-        type: 'info',
-        text1: 'Use Employee view',
-        text2: 'Book appointments via employee lead detail',
-        visibilityTime: 2500,
-      });
-      return;
-    }
     try {
       await updateStatus(leadId, newStatus);
       Toast.show({

@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
+import { usePropertyStore } from '../../store/propertyStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -56,6 +57,7 @@ export default function AdminDashboardScreen() {
     stats, performanceData, monthlyTrend,
     fetchAdminStats, fetchEmployees, fetchPerformanceDashboard, fetchMonthlyTrend,
   } = useAdminStore();
+  const { stats: propertyStats, fetchStats: fetchPropertyStats } = usePropertyStore();
   const [refreshing, setRefreshing] = React.useState(false);
   const [selectedBar, setSelectedBar] = React.useState<{ label: string; value: number } | null>(null);
   const [selectedPoint, setSelectedPoint] = React.useState<{ label: string; value: number } | null>(null);
@@ -71,12 +73,13 @@ export default function AdminDashboardScreen() {
       fetchEmployees();
       fetchPerformanceDashboard();
       fetchMonthlyTrend();
+      fetchPropertyStats();
     }, [])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAdminStats(), fetchEmployees(), fetchPerformanceDashboard(), fetchMonthlyTrend()]);
+    await Promise.all([fetchAdminStats(), fetchEmployees(), fetchPerformanceDashboard(), fetchMonthlyTrend(), fetchPropertyStats()]);
     setRefreshing(false);
   };
 
@@ -87,8 +90,8 @@ export default function AdminDashboardScreen() {
   const statusBarData = [
     { value: stats.interested || 0, label: 'Interested', frontColor: colors.statusInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
     { value: stats.contacted || 0, label: 'Contacted', frontColor: colors.statusContacted, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
-    { value: stats.notInterested || 0, label: 'Not Interested', frontColor: colors.statusNotInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
-    { value: stats.booked || 0, label: 'Booked', frontColor: colors.statusBooked, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+    { value: stats.notInterested || 0, label: 'Not Int.', frontColor: colors.statusNotInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+    { value: stats.pendingLeads || 0, label: 'Pending', frontColor: '#D97706', labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
   ];
   const hasBarData = statusBarData.some((d) => d.value > 0);
   const barMax = Math.max(...statusBarData.map((d) => d.value), 1);
@@ -167,22 +170,44 @@ export default function AdminDashboardScreen() {
           <StatCard icon="today" label="Today Leads" value={stats.todayLeads} bgColor="#FEF9E7" iconColor="#F59E0B" />
           <StatCard icon="person-circle" label="Active Employees" value={stats.activeEmployees} bgColor="#EEF2FF" iconColor="#6366F1" />
         </View>
+
+        {/* Total Leads by Status row */}
         <View style={styles.statsRow}>
-          <StatCard icon="checkmark-circle" label="Booked Today" value={stats.booked} bgColor="#F0FFF4" iconColor="#059669" />
-          <StatCard icon="trophy" label="All Booked" value={stats.allBooked} bgColor="#FFFBEB" iconColor="#B45309" />
+          <StatCard icon="flame" label="Interested" value={stats.interested || 0} bgColor="#FEF2F2" iconColor="#EF4444" />
+          <StatCard icon="radio-button-on" label="Contacted" value={stats.contacted || 0} bgColor="#FFFBEB" iconColor="#F59E0B" />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="trending-up" label="Conversion (Month)" value={stats.conversionRate} suffix="%" bgColor="#ECFDF5" iconColor="#059669" />
-          <StatCard icon="hourglass" label="Total Pending Leads" value={stats.pendingLeads} bgColor="#FEF3C7" iconColor="#B45309" />
-        </View>
-        <View style={styles.statsRow}>
-          <StatCard icon="calendar" label="Appointments Today" value={stats.appointmentsToday}
-            bgColor="#F3E8FF" iconColor="#8B5CF6"
-            onPress={() => navigation.navigate('AdminAppointments')}
-            fullWidth />
+          <StatCard icon="snow" label="Not Interested" value={stats.notInterested || 0} bgColor="#EFF6FF" iconColor="#3B82F6" />
+          <StatCard icon="hourglass" label="Pending" value={stats.pendingLeads || 0} bgColor="#FEF3C7" iconColor="#B45309" />
         </View>
 
-        {/* ── Upcoming Visitors ── */}
+        {/* Total Properties card */}
+        <View style={styles.statsRow}>
+          <StatCard
+            icon="business"
+            label="Total Properties"
+            value={propertyStats.total || 0}
+            bgColor="#F0FDF4"
+            iconColor="#059669"
+            onPress={() => navigation.navigate('AdminAgent')}
+            fullWidth
+          />
+        </View>
+
+        {/* Upcoming Visitors count card */}
+        <View style={styles.statsRow}>
+          <StatCard
+            icon="people"
+            label="Upcoming Visitors"
+            value={stats.todayLeads || 0}
+            bgColor="#ECFEFF"
+            iconColor="#0891B2"
+            onPress={() => navigation.navigate('AdminVisitors')}
+            fullWidth
+          />
+        </View>
+
+        {/* ── Upcoming Visitors detail card ── */}
         <TouchableOpacity
           style={styles.visitorsCard}
           onPress={() => navigation.navigate('AdminVisitors')}

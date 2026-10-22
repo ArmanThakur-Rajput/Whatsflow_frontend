@@ -35,7 +35,6 @@ const STATUS_FILTERS: StatusFilter[] = [
   { label: 'Contacted', value: 'Contacted', icon: 'radio-button-on-outline', color: colors.warning },
   { label: 'Not Interested', value: 'Not Interested', icon: 'snow-outline', color: colors.primary },
   { label: 'Pending', value: 'Pending', icon: 'time-outline', color: colors.pending },
-  { label: 'Booked', value: 'Booked', icon: 'checkmark-circle-outline', color: colors.statusBooked },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -44,7 +43,6 @@ const STATUS_COLORS: Record<string, string> = {
   Contacted: colors.warning,
   'Not Interested': colors.primary,
   Pending: colors.pending,
-  Booked: colors.statusBooked,
 };
 
 const PHONE_REGEX = /^\d{10}$/;

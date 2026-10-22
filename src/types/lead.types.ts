@@ -4,7 +4,6 @@ export type LeadStatus =
   | 'Contacted'
   | 'Not Interested'
   | 'Pending'
-  | 'Booked'
   | 'Deleted'
 
 export interface Lead {

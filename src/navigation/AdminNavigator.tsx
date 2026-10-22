@@ -25,6 +25,14 @@ import AddDataScreen from '../screens/admin/AddDataScreen';
 // Agent Screen (replaces Properties)
 import AgentScreen from '../screens/admin/AgentScreen';
 
+// Properties screens
+import PropertiesDashboardScreen from '../screens/admin/properties/PropertiesDashboardScreen';
+import AddPropertyScreen from '../screens/admin/properties/AddPropertyScreen';
+import ExplorePropertiesScreen from '../screens/admin/properties/ExplorePropertiesScreen';
+import PropertyDetailScreen from '../screens/admin/properties/PropertyDetailScreen';
+import PropertyMasterDataScreen from '../screens/admin/properties/PropertyMasterDataScreen';
+import UploadPropertyPhotosScreen from '../screens/admin/properties/UploadPropertyPhotosScreen';
+
 // Common Screens
 import SidebarScreen from '../screens/common/SidebarScreen';
 import EditProfileScreen from '../screens/common/EditProfileScreen';
@@ -68,8 +76,8 @@ function AdminTabs() {
             iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'AdminAgent') {
             iconName = focused ? 'sparkles' : 'sparkles-outline';
-          } else if (route.name === 'AdminEmployees') {
-            iconName = focused ? 'person-circle' : 'person-circle-outline';
+          } else if (route.name === 'AdminProperties') {
+            iconName = focused ? 'business' : 'business-outline';
           } else if (route.name === 'AdminProfile') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
@@ -79,14 +87,14 @@ function AdminTabs() {
           route.name === 'AdminDashboard' ? 'Dashboard'
             : route.name === 'AdminLeads' ? 'Leads'
               : route.name === 'AdminAgent' ? 'AI Agent'
-                : route.name === 'AdminEmployees' ? 'Employees'
+                : route.name === 'AdminProperties' ? 'Properties'
                   : 'Settings',
       })}
     >
       <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Tab.Screen name="AdminLeads" component={AdminLeadsScreen} />
       <Tab.Screen name="AdminAgent" component={AgentScreen} />
-      <Tab.Screen name="AdminEmployees" component={AdminEmployeesScreen} />
+      <Tab.Screen name="AdminProperties" component={PropertiesDashboardScreen} />
       <Tab.Screen name="AdminProfile" component={AdminProfileScreen} />
     </Tab.Navigator>
   );
@@ -118,6 +126,13 @@ export default function AdminNavigator() {
       <Stack.Screen name="AddData" component={AddDataScreen} />
       {/* Appointments */}
       <Stack.Screen name="AdminAppointments" component={AppointmentsScreen} />
+      {/* Properties */}
+      <Stack.Screen name="PropertiesDashboard" component={PropertiesDashboardScreen} />
+      <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
+      <Stack.Screen name="ExploreProperties" component={ExplorePropertiesScreen} />
+      <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
+      <Stack.Screen name="PropertyMasterData" component={PropertyMasterDataScreen} />
+      <Stack.Screen name="UploadPropertyPhotos" component={UploadPropertyPhotosScreen} />
       {/* Common */}
       <Stack.Screen name="ThemePicker" component={ThemePickerScreen} />
       <Stack.Screen name="LeadCardSettings" component={LeadCardSettingsScreen} />

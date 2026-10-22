@@ -22,7 +22,6 @@ const STATUS_COLORS: Record<string, string> = {
   Contacted: '#F59E0B',
   'Not Interested': '#3B82F6',
   Pending: '#D97706',
-  Booked: '#059669',
   Deleted: '#9CA3AF',
 };
 
@@ -33,7 +32,6 @@ const STATUS_FILTERS = [
   { label: 'Contacted', value: 'Contacted' },
   { label: 'Not Interested', value: 'Not Interested' },
   { label: 'Pending', value: 'Pending' },
-  { label: 'Booked', value: 'Booked' },
   { label: 'Deleted', value: 'Deleted' },
 ];
 

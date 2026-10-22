@@ -76,13 +76,6 @@ export default function DashboardScreen() {
     navigation.navigate('PreviousPendingLeads');
   };
 
-  const goToBookedLeads = () => {
-    navigation.navigate('BookedLeads', { scope: 'today' });
-  };
-
-  const goToAllBookedLeads = () => {
-    navigation.navigate('BookedLeads', { scope: 'all' });
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -149,21 +142,6 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Booked Today */}
-          <TouchableOpacity
-            style={[styles.bookedCard]}
-            onPress={goToBookedLeads}
-            activeOpacity={0.8}
-          >
-            <View style={styles.bookedLeft}>
-              <Ionicons name="checkmark-circle" size={24} color="#059669" />
-              <View style={{ marginLeft: spacing.sm }}>
-                <Text style={styles.bookedLabel}>Booked Today</Text>
-                <Text style={styles.bookedSub}>Visible until end of day</Text>
-              </View>
-            </View>
-            <Text style={styles.bookedValue}>{stats.bookedToday}</Text>
-          </TouchableOpacity>
         </View>
 
         {/* ── Status breakdown ── */}
@@ -223,22 +201,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ── All-time Booked (separate from the today-scoped grid above) ── */}
-        <TouchableOpacity
-          style={styles.allBookedCard}
-          onPress={goToAllBookedLeads}
-          activeOpacity={0.85}
-        >
-          <View style={styles.allBookedIconWrap}>
-            <Ionicons name="trophy" size={26} color="#B45309" />
-          </View>
-          <View style={styles.allBookedTextWrap}>
-            <Text style={styles.allBookedValue}>{stats.booked}</Text>
-            <Text style={styles.allBookedLabel}>All Booked Leads</Text>
-            <Text style={styles.allBookedSub}>Every lead you've ever booked</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#B45309" />
-        </TouchableOpacity>
+
 
         {/* ── Today's Follow-ups ── */}
         <View style={styles.card}>
@@ -371,32 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bookedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ECFDF5',
-    borderRadius: 14,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: '#059669',
-  },
-  bookedLeft: { flexDirection: 'row', alignItems: 'center' },
-  bookedLabel: {
-    fontSize: typography.base,
-    fontWeight: typography.semiBold,
-    color: '#065F46',
-  },
-  bookedSub: {
-    fontSize: typography.xs,
-    color: '#059669',
-    marginTop: 1,
-  },
-  bookedValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#059669',
-  },
+
   statsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -438,38 +376,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F0F0F0',
   },
-  allBookedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    marginHorizontal: spacing.base,
-    marginVertical: spacing.sm,
-    borderRadius: 16,
-    padding: spacing.base,
-    borderWidth: 1.5,
-    borderColor: '#FCD34D',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  allBookedIconWrap: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#FEF3C7',
-    justifyContent: 'center', alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  allBookedTextWrap: { flex: 1 },
-  allBookedValue: {
-    fontSize: 26, fontWeight: '800', color: '#B45309', lineHeight: 30,
-  },
-  allBookedLabel: {
-    fontSize: typography.base, fontWeight: typography.semiBold, color: '#92400E',
-  },
-  allBookedSub: {
-    fontSize: typography.xs, color: '#B45309', marginTop: 1,
-  },
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -34,7 +34,6 @@ const STATUS_COLORS: Record<string, string> = {
   'Contacted': '#F59E0B',
   'Not Interested': '#3B82F6',
   'Pending': '#D97706',
-  'Booked': '#059669',
 };
 
 type StatusFilter = {
@@ -50,7 +49,6 @@ const STATUS_FILTERS: StatusFilter[] = [
   { label: 'Contacted', value: 'Contacted', icon: 'radio-button-on-outline', color: '#F59E0B' },
   { label: 'Not Interested', value: 'Not Interested', icon: 'snow-outline', color: '#3B82F6' },
   { label: 'Pending', value: 'Pending', icon: 'time-outline', color: '#D97706' },
-  { label: 'Booked', value: 'Booked', icon: 'checkmark-circle-outline', color: '#059669' },
 ];
 
 

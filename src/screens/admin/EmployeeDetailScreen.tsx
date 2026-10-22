@@ -15,7 +15,7 @@ import { spacing } from '../../theme/spacing';
 const STATUS_COLORS: Record<string, string> = {
   'New Lead': '#3B82F6', 'Contacted': '#8B5CF6',
   'Follow Up': '#F59E0B', 'Interested': '#10B981',
-  'Visitor': '#06B6D4', 'Booked': '#059669',
+  'Visitor': '#06B6D4',
   'Closed': '#6B7280', 'Uninterested': '#EF4444',
 };
 
@@ -98,10 +98,10 @@ export default function EmployeeDetailScreen() {
           <View style={styles.statBox}>
             <Text style={styles.statValue}>
               {emp.recentLeads?.filter(
-                (l: any) => l.status === 'Booked'
+                (l: any) => l.status === 'Pending'
               ).length || 0}
             </Text>
-            <Text style={styles.statLabel}>Booked</Text>
+            <Text style={styles.statLabel}>Pending</Text>
           </View>
         </View>
 
