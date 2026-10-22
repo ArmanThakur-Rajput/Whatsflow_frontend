@@ -173,38 +173,12 @@ export default function AdminDashboardScreen() {
 
         {/* Total Leads by Status row */}
         <View style={styles.statsRow}>
-          <StatCard icon="flame" label="Interested" value={stats.interested || 0} bgColor="#FEF2F2" iconColor="#EF4444" />
-          <StatCard icon="radio-button-on" label="Contacted" value={stats.contacted || 0} bgColor="#FFFBEB" iconColor="#F59E0B" />
+          <StatCard icon="layers" label="Total Leads" value={stats.totalLeads || 0} bgColor="#FEF2F2" iconColor="#EF4444" />
+          <StatCard icon="business" label="Total Properties" value={propertyStats.total || 0} bgColor="#FFFBEB" iconColor="#F59E0B" onPress={() => navigation.navigate('AdminAgent')} />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="snow" label="Not Interested" value={stats.notInterested || 0} bgColor="#EFF6FF" iconColor="#3B82F6" />
+          <StatCard icon="people" label="Upcoming Visitors" value={stats.upcomingVisitors || 0} bgColor="#EFF6FF" iconColor="#3B82F6" onPress={() => navigation.navigate('AdminVisitors')} />
           <StatCard icon="hourglass" label="Pending" value={stats.pendingLeads || 0} bgColor="#FEF3C7" iconColor="#B45309" />
-        </View>
-
-        {/* Total Properties card */}
-        <View style={styles.statsRow}>
-          <StatCard
-            icon="business"
-            label="Total Properties"
-            value={propertyStats.total || 0}
-            bgColor="#F0FDF4"
-            iconColor="#059669"
-            onPress={() => navigation.navigate('AdminAgent')}
-            fullWidth
-          />
-        </View>
-
-        {/* Upcoming Visitors count card */}
-        <View style={styles.statsRow}>
-          <StatCard
-            icon="people"
-            label="Upcoming Visitors"
-            value={stats.todayLeads || 0}
-            bgColor="#ECFEFF"
-            iconColor="#0891B2"
-            onPress={() => navigation.navigate('AdminVisitors')}
-            fullWidth
-          />
         </View>
 
         {/* ── Upcoming Visitors detail card ── */}
