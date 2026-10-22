@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "WhatsFlow",
@@ -24,10 +25,26 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-secure-store",
-      "expo-asset"
+      "expo-asset",
+      "expo-notifications",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Mic access chahiye voice recognition ke liye",
+          "speechRecognitionPermission": "Speech recognition chahiye voice input ke liye",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
     ],
     "android": {
-      "package": "com.leadmanagementapp",
+      "package": "whatsflow.velta",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
@@ -38,7 +55,9 @@
       "supportsTablet": true,
       "requireFullScreen": false,
       "infoPlist": {
-        "UIViewControllerBasedStatusBarAppearance": true
+        "UIViewControllerBasedStatusBarAppearance": true,
+        "NSSpeechRecognitionUsageDescription": "Speech recognition chahiye voice input ke liye",
+        "NSMicrophoneUsageDescription": "Mic access chahiye voice recognition ke liye"
       }
     },
     "web": {
@@ -54,7 +73,13 @@
       "eas": {
         "projectId": "15751e65-ebd5-4c7a-bd0c-821489f59e0e"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/15751e65-ebd5-4c7a-bd0c-821489f59e0e"
     }
-  },
-  "owner": "velta"
+    
+  }
 }
