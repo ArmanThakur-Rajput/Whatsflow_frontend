@@ -133,7 +133,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
       <Stack.Screen name="PropertyMasterData" component={PropertyMasterDataScreen} />
       <Stack.Screen name="UploadPropertyPhotos" component={UploadPropertyPhotosScreen} />
-      <Stack.Screen name="AdminAgent" component={AdminPropertiesScreen} />
+      <Stack.Screen name="AdminPropertiesList" component={AdminPropertiesScreen} />
       
       {/* Common */}
       <Stack.Screen name="ThemePicker" component={ThemePickerScreen} />

@@ -7,10 +7,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { usePropertyStore, Property } from '../../store/propertyStore';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { usePropertyStore, Property } from '../../../store/propertyStore';
+import { colors } from '../../../theme/colors';
+import { typography } from '../../../theme/typography';
+import { spacing } from '../../../theme/spacing';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 

@@ -174,7 +174,7 @@ export default function AdminDashboardScreen() {
         {/* Total Leads by Status row */}
         <View style={styles.statsRow}>
           <StatCard icon="layers" label="Total Leads" value={stats.totalLeads || 0} bgColor="#FEF2F2" iconColor="#EF4444" />
-          <StatCard icon="business" label="Total Properties" value={propertyStats.total || 0} bgColor="#FFFBEB" iconColor="#F59E0B" onPress={() => navigation.navigate('AdminAgent')} />
+          <StatCard icon="business" label="Total Properties" value={propertyStats.total || 0} bgColor="#FFFBEB" iconColor="#F59E0B" onPress={() => navigation.navigate('AdminPropertiesList')} />
         </View>
         <View style={styles.statsRow}>
           <StatCard icon="people" label="Upcoming Visitors" value={stats.upcomingVisitors || 0} bgColor="#EFF6FF" iconColor="#3B82F6" onPress={() => navigation.navigate('AdminVisitors')} />

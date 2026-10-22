@@ -6,10 +6,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { usePropertyStore, Property } from '../../store/propertyStore';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { usePropertyStore, Property } from '../../../store/propertyStore';
+import { colors } from '../../../theme/colors';
+import { typography } from '../../../theme/typography';
+import { spacing } from '../../../theme/spacing';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const FLOOR_OPTIONS = ['Ground', ...Array.from({ length: 99 }, (_, i) => String(i + 1))];
