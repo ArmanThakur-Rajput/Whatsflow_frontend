@@ -4,174 +4,151 @@ import axiosInstance from '../api/axiosInstance';
 export interface Property {
   _id: string;
   projectName: string;
-  intent: 'rent' | 'buy';
   propertyType: string;
-  flatConfig?: string;
+  location: string;
+  price: string;
+  floor: string;
   carpetArea?: string;
   buildupArea?: string;
-  plotArea?: string;
-  location: string;
-  address?: string;
-  price?: string;
+  sanction: 'Yes' | 'No';
+  parking: 'Open' | 'Covered' | 'None';
+  water: 'Municipal Corporation' | 'Gram Panchayat' | 'Tanker' | 'Boring';
+  // optional
+  intent?: 'rent' | 'buy';
+  flatConfig?: string;
+  buildingArea?: string;
+  flatsOnFloor?: string;
+  lift?: 'Yes' | 'No' | '';
+  wings?: string;
+  facing?: string;
   amenities?: string[];
-  parking?: string;
+  plotArea?: string;
+  address?: string;
   notes?: string;
   ownerName?: string;
   ownerPhone?: string;
-  photos: string[];
+  tenantPhone?: string;
+  gmapsLink?: string;
+  photos?: string[];
   status: 'available' | 'sold' | 'rented';
-  soldOrRentedAt?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
-export interface MasterDataItem {
-  _id: string;
-  category: 'location' | 'amenity' | 'parking' | 'propertyType';
-  value: string;
-}
-
-export interface PropertyStats {
+interface PropertyStats {
   total: number;
   available: number;
   sold: number;
-}
-
-export interface LocationSummary {
-  _id: string;
-  total: number;
-  available: number;
-  sold: number;
-  rented: number;
-}
-
-export interface TypeSummary {
-  _id: string;
-  total: number;
-  available: number;
-  sold: number;
-  rented: number;
 }
 
 interface PropertyStore {
-  stats: PropertyStats;
-  masterData: MasterDataItem[];
-  locations: LocationSummary[];
-  types: TypeSummary[];
   properties: Property[];
+  stats: PropertyStats;
   isLoading: boolean;
+  error: string | null;
 
+  fetchProperties: (filters?: Record<string, string>) => Promise<void>;
   fetchStats: () => Promise<void>;
-  fetchMasterData: (category?: string) => Promise<void>;
-  addMasterData: (category: string, value: string) => Promise<void>;
-  deleteMasterData: (id: string) => Promise<void>;
-  fetchLocationsSummary: () => Promise<void>;
-  fetchTypesSummary: (location?: string) => Promise<void>;
-  fetchProperties: (filters?: { location?: string; propertyType?: string; status?: string; flatConfig?: string }) => Promise<void>;
-  createProperty: (data: Partial<Property>) => Promise<Property>;
-  updateProperty: (id: string, data: Partial<Property>) => Promise<Property>;
+  createProperty: (data: Partial<Property>) => Promise<void>;
+  updateProperty: (id: string, data: Partial<Property>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
   setPropertyStatus: (id: string, status: 'available' | 'sold' | 'rented') => Promise<void>;
-  uploadPhotos: (id: string, photos: string[]) => Promise<string[]>;
-  deletePhoto: (id: string, url: string) => Promise<string[]>;
-  getPropertyById: (id: string) => Promise<Property>;
+  uploadPhotos: (id: string, files: any[]) => Promise<void>;
+  deletePhoto: (id: string, url: string) => Promise<void>;
+  exportCSV: (filters?: Record<string, string>) => Promise<string>;
 }
 
 export const usePropertyStore = create<PropertyStore>((set, get) => ({
-  stats: { total: 0, available: 0, sold: 0 },
-  masterData: [],
-  locations: [],
-  types: [],
   properties: [],
+  stats: { total: 0, available: 0, sold: 0 },
   isLoading: false,
-
-  fetchStats: async () => {
-    try {
-      const { data } = await axiosInstance.get('/property-crm/stats');
-      set({ stats: data });
-    } catch {}
-  },
-
-  fetchMasterData: async (category?: string) => {
-    try {
-      const params = category ? { category } : {};
-      const { data } = await axiosInstance.get('/property-crm/master-data', { params });
-      set({ masterData: data.items });
-    } catch {}
-  },
-
-  addMasterData: async (category: string, value: string) => {
-    const { data } = await axiosInstance.post('/property-crm/master-data', { category, value });
-    set((s) => ({ masterData: [...s.masterData, data.item] }));
-  },
-
-  deleteMasterData: async (id: string) => {
-    await axiosInstance.delete(`/property-crm/master-data/${id}`);
-    set((s) => ({ masterData: s.masterData.filter((m) => m._id !== id) }));
-  },
-
-  fetchLocationsSummary: async () => {
-    try {
-      const { data } = await axiosInstance.get('/property-crm/locations-summary');
-      set({ locations: data.locations });
-    } catch {}
-  },
-
-  fetchTypesSummary: async (location?: string) => {
-    try {
-      const params = location ? { location } : {};
-      const { data } = await axiosInstance.get('/property-crm/types-summary', { params });
-      set({ types: data.types });
-    } catch {}
-  },
+  error: null,
 
   fetchProperties: async (filters = {}) => {
     set({ isLoading: true });
     try {
-      const { data } = await axiosInstance.get('/property-crm/properties', { params: filters });
-      set({ properties: data.properties });
-    } finally {
-      set({ isLoading: false });
+      const params = new URLSearchParams(filters as any);
+      const res = await axiosInstance.get(`/property-crm/properties?${params.toString()}`);
+      set({ properties: res.data.properties || [], isLoading: false });
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
     }
   },
 
-  createProperty: async (propData) => {
-    const { data } = await axiosInstance.post('/property-crm/properties', propData);
-    return data.property;
+  fetchStats: async () => {
+    try {
+      const res = await axiosInstance.get('/property-crm/stats');
+      set({ stats: res.data });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
   },
 
-  updateProperty: async (id, propData) => {
-    const { data } = await axiosInstance.patch(`/property-crm/properties/${id}`, propData);
-    return data.property;
+  createProperty: async (data) => {
+    try {
+      await axiosInstance.post('/property-crm/properties', data);
+      await get().fetchProperties();
+      await get().fetchStats();
+    } catch (err: any) {
+      throw err;
+    }
   },
 
-  deleteProperty: async (id: string) => {
-    await axiosInstance.delete(`/property-crm/properties/${id}`);
-    set((s) => ({
-      properties: s.properties.filter((p) => p._id !== id),
-    }));
+  updateProperty: async (id, data) => {
+    try {
+      await axiosInstance.patch(`/property-crm/properties/${id}`, data);
+      await get().fetchProperties();
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  deleteProperty: async (id) => {
+    try {
+      await axiosInstance.delete(`/property-crm/properties/${id}`);
+      await get().fetchProperties();
+      await get().fetchStats();
+    } catch (err: any) {
+      throw err;
+    }
   },
 
   setPropertyStatus: async (id, status) => {
-    await axiosInstance.patch(`/property-crm/properties/${id}/status`, { status });
-    set((s) => ({
-      properties: s.properties.map((p) =>
-        p._id === id ? { ...p, status } : p
-      ),
-    }));
+    try {
+      await axiosInstance.patch(`/property-crm/properties/${id}/status`, { status });
+      await get().fetchProperties();
+      await get().fetchStats();
+    } catch (err: any) {
+      throw err;
+    }
   },
 
-  uploadPhotos: async (id, photos) => {
-    const { data } = await axiosInstance.post(`/property-crm/properties/${id}/photos`, { photos });
-    return data.photos;
+  uploadPhotos: async (id, files) => {
+    try {
+      const form = new FormData();
+      files.forEach((f) => form.append('photos', f));
+      await axiosInstance.post(`/property-crm/properties/${id}/photos`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      await get().fetchProperties();
+    } catch (err: any) {
+      throw err;
+    }
   },
 
   deletePhoto: async (id, url) => {
-    const { data } = await axiosInstance.delete(`/property-crm/properties/${id}/photos`, { data: { url } });
-    return data.photos;
+    try {
+      await axiosInstance.delete(`/property-crm/properties/${id}/photos`, { data: { url } });
+      await get().fetchProperties();
+    } catch (err: any) {
+      throw err;
+    }
   },
 
-  getPropertyById: async (id) => {
-    const { data } = await axiosInstance.get(`/property-crm/properties/${id}`);
-    return data.property;
+  exportCSV: async (filters = {}) => {
+    const params = new URLSearchParams(filters as any);
+    const res = await axiosInstance.get(`/property-crm/properties/export-csv?${params.toString()}`, {
+      responseType: 'text',
+    });
+    return res.data as string;
   },
 }));

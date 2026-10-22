@@ -21,7 +21,7 @@ import MonthlyLeadsScreen from '../screens/admin/MonthlyLeadsScreen';
 import AdminScheduleScreen from '../screens/admin/AdminScheduleScreen';
 import CustomFieldsScreen from '../screens/admin/CustomFieldsScreen';
 import AddDataScreen from '../screens/admin/AddDataScreen';
-
+import AdminPropertiesScreen from '../screens/admin/AdminPropertiesScreen';
 // Agent Screen (replaces Properties)
 import AgentScreen from '../screens/admin/AgentScreen';
 
@@ -133,6 +133,8 @@ export default function AdminNavigator() {
       <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
       <Stack.Screen name="PropertyMasterData" component={PropertyMasterDataScreen} />
       <Stack.Screen name="UploadPropertyPhotos" component={UploadPropertyPhotosScreen} />
+      <Stack.Screen name="AdminAgent" component={AdminPropertiesScreen} />
+      
       {/* Common */}
       <Stack.Screen name="ThemePicker" component={ThemePickerScreen} />
       <Stack.Screen name="LeadCardSettings" component={LeadCardSettingsScreen} />
