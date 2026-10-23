@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
+import axiosInstance from '../../api/axiosInstance';
 import * as Speech from 'expo-speech';
 import Svg, { Circle, Ellipse, Path, Polyline, Line, Polygon, Rect } from 'react-native-svg';
 import {
@@ -22,14 +23,8 @@ import {
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
 
-// ─────────────────────────────────────────────────────────────────────────────
-const N8N_WEBHOOK_URL =
-  'https://whatsapp-lead-n8n.ndna0p.easypanel.host/webhook/test';
+// Riva requests go through the authenticated backend; no n8n secret is shipped in the app.
 
-// 🔐 Secret key — n8n Header Auth se match karna chahiye
-// Production mein isko expo-constants ya env se lo, hardcode mat karo
-const WEBHOOK_SECRET_KEY = 'riva-secret-2024';
-// ─────────────────────────────────────────────────────────────────────────────
 
 type MicState = 'idle' | 'listening' | 'processing';
 type MsgRole  = 'user' | 'agent';
@@ -484,17 +479,17 @@ export default function AgentScreen() {
     setInputText(''); setThinking(true);
     abortRef.current = new AbortController();
     try {
-      const res = await fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': WEBHOOK_SECRET_KEY,   // 🔐 Secret header
-        },
+      // axiosInstance automatically attaches the logged-in user's JWT.
+      // Override its normal 10s timeout because AI responses can take longer;
+      // the extra backend hop adds very little latency compared with model time.
+      const response = await axiosInstance.post('/riva/chat', {
+        sessionId: SESSION_ID,
+        message: text.trim(),
+      }, {
+        timeout: 65000,
         signal: abortRef.current.signal,
-        body: JSON.stringify({ type: 'text', sessionId: SESSION_ID, message: text.trim(), timestamp: new Date().toISOString() }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data  = await res.json();
+      const data = response.data;
       const reply = data?.reply || data?.output || data?.message || data?.text || 'No response received.';
       setMsgs(prev => prev.map(m => m.id === userMsg.id ? { ...m, status: 'sent' } : m));
       const agentMsg: Msg = { id: `a${Date.now()}`, role: 'agent', text: reply, ts: new Date(), status: 'sent', property: data?.property ?? undefined };
@@ -503,7 +498,7 @@ export default function AgentScreen() {
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       setMsgs(prev => prev.map(m => m.id === userMsg.id ? { ...m, status: 'error' } : m));
-      Toast.show({ type: 'error', text1: 'Agent unavailable', text2: err.message, position: 'top' });
+      Toast.show({ type: 'error', text1: 'Agent unavailable', text2: err.response?.data?.message || (err.code === 'ECONNABORTED' ? 'Riva is taking longer than usual. Please retry.' : err.message || 'Please try again.'), position: 'top' });
     } finally { setThinking(false); setMicState('idle'); }
   }, [orbMode, speakText]);
 

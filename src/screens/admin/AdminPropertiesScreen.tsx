@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, Alert, Share, Linking, RefreshControl, Platform,
+  TextInput, Alert, Share, Linking, RefreshControl,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,6 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import * as DocumentPicker from 'expo-document-picker';
 import axiosInstance from '../../api/axiosInstance';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
@@ -130,7 +129,6 @@ export default function AdminPropertiesScreen() {
   const [search, setSearch] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
-  const [importing, setImporting] = React.useState(false);
   const [pendingCount, setPendingCount] = React.useState(0);
 
   const load = React.useCallback(() => {
@@ -196,65 +194,13 @@ export default function AdminPropertiesScreen() {
     try {
       setExporting(true);
       const csv = await exportCSV({});
-      // Browser download (this app is commonly used on web)
-      if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = 'properties.csv';
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-      } else {
-        const path = FileSystem.documentDirectory + 'properties.csv';
-        await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
-        await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export Properties CSV' });
-      }
+      const path = FileSystem.documentDirectory + 'properties.csv';
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export Properties CSV' });
     } catch (e: any) {
-      Alert.alert('Export Failed', e?.response?.data?.message || e.message || 'Could not export properties.');
+      Alert.alert('Export Failed', e.message);
     } finally {
       setExporting(false);
-    }
-  };
-
-  const handleImportCSV = async () => {
-    try {
-      const picked = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel', 'application/octet-stream'],
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-      if (picked.canceled || !picked.assets?.length) return;
-      const asset: any = picked.assets[0];
-      setImporting(true);
-      const form = new FormData();
-      if (Platform.OS === 'web' && asset.file) {
-        form.append('file', asset.file, asset.name || 'properties.csv');
-      } else {
-        form.append('file', {
-          uri: asset.uri,
-          name: asset.name || 'properties.csv',
-          type: asset.mimeType || 'text/csv',
-        } as any);
-      }
-      const response = await axiosInstance.post('/property-crm/import', form, {
-        headers: { 'Content-Type': undefined as any },
-      });
-      await load();
-      const summary = response.data?.summary;
-      const imported = summary?.imported ?? 0;
-      const skipped = summary?.skipped ?? 0;
-      const errors = Array.isArray(summary?.errors) ? summary.errors.slice(0, 5).map((e: any) => `Row ${e.row}: ${e.reason}`).join('\n') : '';
-      Alert.alert(
-        'Import complete',
-        `${imported} properties imported. ${skipped} skipped.${errors ? `\n\n${errors}` : ''}${summary?.errors?.length > 5 ? `\n…and ${summary.errors.length - 5} more errors.` : ''}`,
-      );
-    } catch (e: any) {
-      Alert.alert('Import Failed', e?.response?.data?.message || e.message || 'Could not import CSV.');
-    } finally {
-      setImporting(false);
     }
   };
 
@@ -282,16 +228,15 @@ export default function AdminPropertiesScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.requestsBtn, exporting && { opacity: 0.65 }]}
+            style={styles.exportBtn}
             onPress={handleExportCSV}
             disabled={exporting}
-            accessibilityLabel="Export properties CSV"
           >
             {exporting
               ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Ionicons name="download-outline" size={20} color={colors.primary} />}
+              : <Ionicons name="download-outline" size={18} color={colors.primary} />}
+            <Text style={styles.exportLabel}>CSV</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.addBtn}
             onPress={() => navigation.navigate('AddProperty')}
@@ -360,8 +305,7 @@ const styles = StyleSheet.create({
   requestsBtn:     { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
   badge:           { position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', borderRadius: 10, minWidth: 18, height: 18, paddingHorizontal: 3, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: colors.background },
   badgeText:       { color: '#fff', fontSize: 9, fontWeight: '800' },
-  importBtn:       { width: 38, height: 38, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.primaryLight, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  exportBtn:       { width: 38, height: 38, borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  exportBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10, paddingHorizontal: spacing.sm, paddingVertical: 6 },
   exportLabel:     { fontSize: typography.xs, color: colors.primary, fontWeight: typography.semiBold },
   addBtn:          { backgroundColor: colors.primary, width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   searchWrap:      { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, marginHorizontal: spacing.base, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },

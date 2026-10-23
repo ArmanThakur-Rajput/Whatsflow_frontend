@@ -136,6 +136,7 @@ function ImportPanel({
 }) {
   const [downloading, setDownloading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [pickedFileName, setPickedFileName] = useState<string | null>(null);
   const [pickedFileUri, setPickedFileUri] = useState<string | null>(null);
   const [pickedFileBlob, setPickedFileBlob] = useState<Blob | null>(null);
@@ -143,6 +144,7 @@ function ImportPanel({
 
   const templateUrl = type === 'leads' ? '/leads/import/template' : '/property-crm/import/template';
   const importUrl = type === 'leads' ? '/leads/import' : '/property-crm/import';
+  const exportUrl = type === 'properties' ? '/property-crm/export' : null;
   const templateName = type === 'leads' ? 'leads_template.csv' : 'properties_template.csv';
   const entityLabel = type === 'leads' ? 'Leads' : 'Properties';
 
@@ -284,13 +286,49 @@ function ImportPanel({
     }
   };
 
+  const handleExport = async () => {
+    if (!exportUrl) return;
+    setExporting(true);
+    try {
+      const { storage } = await import('../../utils/storage');
+      const token = await storage.getToken();
+      const url = axiosInstance.defaults.baseURL + exportUrl;
 
+      if (Platform.OS === 'web') {
+        const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!response.ok) throw new Error('Export failed');
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = 'properties_export.csv';
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(objectUrl);
+      } else {
+        const FileSystem = await import('expo-file-system/legacy');
+        const fileUri = FileSystem.cacheDirectory + 'properties_export.csv';
+        const downloadRes = await FileSystem.downloadAsync(url, fileUri, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(downloadRes.uri, { mimeType: 'text/csv', dialogTitle: 'Save Properties Export' });
+        }
+      }
+      Toast.show({ type: 'success', text1: 'Properties exported!' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: 'Export failed', text2: err?.message });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const hasFile = !!pickedFileUri;
 
   const tipText = type === 'leads'
     ? 'Duplicate phone numbers and invalid values will be skipped automatically.'
-    : 'Required columns: projectName, intent, propertyType, location. intent must be rent or buy. Property types may be 1RK, 1BHK, 2BHK, 3BHK, 4BHK+, Bunglow, Plot or Commercial. Optional columns can be left blank. Amenities should be separated with semicolons (e.g. Pool;Gym;Security).';
+    : 'Amenities should be semicolon-separated (e.g. Pool;Gym;Security).\n\n• intent must be "rent" or "buy"\n• Flat → flatConfig required (1RK, 1BHK, 2BHK, 3BHK, 4BHK, 4BHK+)\n• Plot → plotArea required (in sqft)\n• Rows missing projectName, intent, propertyType or location are skipped';
 
   return (
     <View style={styles.panelContent}>
@@ -450,6 +488,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669' + '12',
     borderWidth: 1.5, borderColor: '#059669',
   },
+  btnExportText: { fontSize: typography.base, fontWeight: typography.semiBold, color: '#059669' },
 
   stepCard: {
     backgroundColor: colors.white, borderRadius: 16,

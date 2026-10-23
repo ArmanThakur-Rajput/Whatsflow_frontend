@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, Dimensions, FlatList, Alert, Modal, Linking, Share, Platform,
+  Image, ActivityIndicator, Dimensions, FlatList, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,8 +10,6 @@ import { usePropertyStore, Property } from '../../../store/propertyStore';
 import { colors } from '../../../theme/colors';
 import { typography } from '../../../theme/typography';
 import { spacing } from '../../../theme/spacing';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 
 const { width } = Dimensions.get('window');
 
@@ -51,67 +49,24 @@ export default function PropertyDetailScreen() {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
-  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  const photos = (property?.photos || []).filter(Boolean);
-
-  const handleWhatsApp = async () => {
-    if (!property) return;
-    const lines = [
-      'KIN PROPERTY MANAGEMENT',
-      'Your Property, Our Trust',
-      '',
-      `Property: ${property.projectName || ''}`,
-      `Type: ${property.propertyType || ''}`,
-      `Location: ${property.location || ''}`,
-      `Price: ${property.price || ''}`,
-    ];
-    if (property.floor) lines.push(`Floor: ${property.floor}`);
-    if (property.carpetArea) lines.push(`Carpet Area: ${property.carpetArea}`);
-    if (property.buildupArea) lines.push(`Buildup Area: ${property.buildupArea}`);
-    if (property.sanction) lines.push(`Sanction: ${property.sanction}`);
-    if (property.parking) lines.push(`Parking: ${property.parking}`);
-    if (property.water) lines.push(`Water: ${property.water}`);
-    if (property.gmapsLink) lines.push(`Map: ${property.gmapsLink}`);
-    const message = lines.join('\\n');
-    try {
-      await Linking.openURL(`https://wa.me/?text=${encodeURIComponent(message)}`);
-    } catch {
-      await Share.share({ message });
-    }
-  };
-
-  const downloadOne = async (uri: string, index: number) => {
-    try {
-      if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        const response = await fetch(uri);
-        if (!response.ok) throw new Error('Could not download image');
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = objectUrl;
-        anchor.download = `property-${(property?.projectName || 'image').replace(/[^a-z0-9-_]/gi, '-')}-${index + 1}.jpg`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(objectUrl);
-      } else {
-        const directory = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
-        const result = await FileSystem.downloadAsync(uri, `${directory}property-image-${index + 1}.jpg`);
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(result.uri, { mimeType: 'image/jpeg' });
-        }
-      }
-    } catch {
-      Alert.alert('Download failed', 'Image download nahi ho paayi. Image URL/storage access check karo.');
-    }
-  };
-
-  const downloadAllPhotos = async () => {
-    if (!photos.length) return;
-    for (let i = 0; i < photos.length; i++) {
-      await downloadOne(photos[i], i);
-    }
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Property',
+      'This will permanently delete this property and all its photos. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive', onPress: async () => {
+            try {
+              await deleteProperty(propertyId);
+              navigation.goBack();
+            } catch {
+              Alert.alert('Error', 'Failed to delete property');
+            }
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -140,7 +95,14 @@ export default function PropertyDetailScreen() {
           <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{property.projectName}</Text>
-        <View style={{ width: 36 }} />
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('AddProperty', { editId: property._id })}>
+            <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={18} color={colors.error} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -153,10 +115,8 @@ export default function PropertyDetailScreen() {
             keyExtractor={(u) => u}
             showsHorizontalScrollIndicator={false}
             style={styles.photoStrip}
-            renderItem={({ item, index }) => (
-              <TouchableOpacity activeOpacity={0.9} onPress={() => { setActivePhotoIndex(index); setPhotoViewerVisible(true); }}>
-                <Image source={{ uri: item }} resizeMode="cover" style={{ width: width - spacing.base * 2, height: 220, borderRadius: 16, backgroundColor: '#E8EEF3' }} />
-              </TouchableOpacity>
+            renderItem={({ item }) => (
+              <Image source={{ uri: item }} style={{ width: width - spacing.base * 2, height: 220, borderRadius: 16 }} />
             )}
           />
         )}
@@ -209,73 +169,27 @@ export default function PropertyDetailScreen() {
           </View>
         )}
 
-        {/* Property detail actions: WhatsApp and Photos only */}
+        {/* Actions */}
         <View style={styles.actionsCard}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleWhatsApp}>
-            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-            <Text style={[styles.actionText, { color: '#25D366' }]}>WhatsApp Send</Text>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate('AddProperty', { editId: property._id })}
+          >
+            <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => navigation.navigate('UploadPropertyPhotos', { propertyId: property._id, isEdit: true })}
           >
-            <Ionicons name="images-outline" size={20} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Photos</Text>
+            <Ionicons name="images-outline" size={20} color={colors.success} />
+            <Text style={[styles.actionText, { color: colors.success }]}>Photos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+            <Text style={[styles.actionText, { color: colors.error }]}>Delete</Text>
           </TouchableOpacity>
         </View>
-
-        <Modal
-          visible={photoViewerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPhotoViewerVisible(false)}
-        >
-          <View style={styles.viewerOverlay}>
-            <View style={styles.viewerHeader}>
-              <Text style={styles.viewerCount}>{photos.length ? `${activePhotoIndex + 1} / ${photos.length}` : 'Photos'}</Text>
-              <TouchableOpacity onPress={() => setPhotoViewerVisible(false)} style={styles.viewerClose}>
-                <Ionicons name="close" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            {photos.length > 0 && (
-              <View style={styles.viewerImageRow}>
-                <TouchableOpacity
-                  style={styles.viewerArrow}
-                  disabled={activePhotoIndex <= 0}
-                  onPress={() => setActivePhotoIndex((i) => Math.max(0, i - 1))}
-                >
-                  <Ionicons name="chevron-back" size={28} color={activePhotoIndex <= 0 ? '#777' : '#FFFFFF'} />
-                </TouchableOpacity>
-                <Image source={{ uri: photos[activePhotoIndex] }} resizeMode="contain" style={styles.viewerImage} />
-                <TouchableOpacity
-                  style={styles.viewerArrow}
-                  disabled={activePhotoIndex >= photos.length - 1}
-                  onPress={() => setActivePhotoIndex((i) => Math.min(photos.length - 1, i + 1))}
-                >
-                  <Ionicons name="chevron-forward" size={28} color={activePhotoIndex >= photos.length - 1 ? '#777' : '#FFFFFF'} />
-                </TouchableOpacity>
-              </View>
-            )}
-            <View style={styles.viewerButtons}>
-              <TouchableOpacity
-                style={styles.viewerButton}
-                disabled={!photos.length}
-                onPress={() => downloadOne(photos[activePhotoIndex], activePhotoIndex)}
-              >
-                <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.viewerButtonText}>Download This</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.viewerButton}
-                disabled={!photos.length}
-                onPress={downloadAllPhotos}
-              >
-                <Ionicons name="cloud-download-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.viewerButtonText}>Download All Images</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -341,14 +255,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background, borderRadius: 12,
   },
   actionText: { fontSize: typography.sm, fontWeight: typography.bold },
-  viewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', justifyContent: 'space-between', paddingTop: 28, paddingBottom: 28 },
-  viewerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18 },
-  viewerCount: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  viewerClose: { padding: 8 },
-  viewerImageRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  viewerArrow: { width: 42, alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
-  viewerImage: { flex: 1, height: '82%' as any },
-  viewerButtons: { flexDirection: 'row', gap: 10, paddingHorizontal: 14 },
-  viewerButton: { flex: 1, minHeight: 48, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, borderRadius: 12, backgroundColor: colors.primary },
-  viewerButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 });

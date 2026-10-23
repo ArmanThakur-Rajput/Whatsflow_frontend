@@ -158,7 +158,7 @@ export const usePropertyStore = create<PropertyStore>((set, get) => ({
 
   exportCSV: async (filters = {}) => {
     const params = new URLSearchParams(filters as any);
-    const res = await axiosInstance.get(`/property-crm/export?${params.toString()}`, {
+    const res = await axiosInstance.get(`/property-crm/properties/export-csv?${params.toString()}`, {
       responseType: 'text',
     });
     return res.data as string;

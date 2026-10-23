@@ -215,10 +215,11 @@ export default function AdminPropertiesScreen() {
             style={styles.exportBtn}
             onPress={handleExportCSV}
             disabled={exporting}
-            accessibilityLabel="Export properties CSV"
           >
-            <Ionicons name="download-outline" size={16} color={colors.primary} />
-            <Text style={styles.exportLabel}>{exporting ? 'CSV…' : 'CSV'}</Text>
+            {exporting
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Ionicons name="download-outline" size={18} color={colors.primary} />}
+            <Text style={styles.exportLabel}>CSV</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addBtn}
