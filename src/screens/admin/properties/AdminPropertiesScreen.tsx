@@ -212,6 +212,15 @@ export default function AdminPropertiesScreen() {
         </View>
         <View style={styles.headerBtns}>
           <TouchableOpacity
+            style={styles.exportBtn}
+            onPress={handleExportCSV}
+            disabled={exporting}
+            accessibilityLabel="Export properties CSV"
+          >
+            <Ionicons name="download-outline" size={16} color={colors.primary} />
+            <Text style={styles.exportLabel}>{exporting ? 'CSV…' : 'CSV'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.addBtn}
             onPress={() => navigation.navigate('AddProperty')}
           >
