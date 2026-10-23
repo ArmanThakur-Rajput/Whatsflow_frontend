@@ -7,11 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePropertyStore, Property } from '../../../store/propertyStore';
+import axiosInstance from '../../../api/axiosInstance';
 import { colors } from '../../../theme/colors';
 import { typography } from '../../../theme/typography';
 import { spacing } from '../../../theme/spacing';
 
-const { width } = Dimensions.get('window');
+const { width: windowWidth } = Dimensions.get('window');
 
 // ─── Price display helper ─────────────────────────────────────────────────────
 function formatPrice(raw: string | undefined): string {
@@ -48,6 +49,22 @@ export default function PropertyDetailScreen() {
 
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
+  const [photoWidth, setPhotoWidth] = useState(Math.max(260, Math.min(windowWidth - spacing.base * 2, 520)));
+  const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
+  const [activePhoto, setActivePhoto] = useState(0);
+
+  const photoUrls = (Array.isArray(property?.photos) ? property!.photos : [])
+    .map((photo: any) => typeof photo === 'string' ? photo : (photo?.url || photo?.uri || photo?.location || ''))
+    .map((rawUrl: string) => {
+      const url = String(rawUrl || '').trim();
+      if (!url || /^(https?:)?\/\//i.test(url) || /^(data:image\/|blob:)/i.test(url)) return url;
+      if (url.startsWith('/')) {
+        const apiBase = String(axiosInstance.defaults.baseURL || '').replace(/\/api\/?$/, '');
+        return apiBase ? `${apiBase}${url}` : url;
+      }
+      return url;
+    })
+    .filter((url: string) => Boolean(url));
 
   const handleDelete = () => {
     Alert.alert(
@@ -70,11 +87,14 @@ export default function PropertyDetailScreen() {
   };
 
   useEffect(() => {
+    let mounted = true;
+    // Always fetch fresh data so photos uploaded moments ago aren't hidden by stale Zustand cache.
     getPropertyById(propertyId)
-      .then(setProperty)
-      .catch(() => navigation.goBack())
-      .finally(() => setLoading(false));
-  }, []);
+      .then((freshProperty) => { if (mounted) setProperty(freshProperty); })
+      .catch(() => { if (mounted) navigation.goBack(); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [propertyId]);
 
   if (loading) {
     return (
@@ -106,19 +126,46 @@ export default function PropertyDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Photos */}
-        {(property.photos?.length ?? 0) > 0 && (
-          <FlatList
-            data={property.photos || []}
-            horizontal
-            pagingEnabled
-            keyExtractor={(u) => u}
-            showsHorizontalScrollIndicator={false}
-            style={styles.photoStrip}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={{ width: width - spacing.base * 2, height: 220, borderRadius: 16 }} />
+        {/* Photos: measure the actual content width (the browser window may be much wider than the app panel). */}
+        {photoUrls.length > 0 && (
+          <View style={styles.photoGallery} onLayout={(event) => {
+            const measured = event.nativeEvent.layout.width;
+            if (measured > 0 && measured !== photoWidth) setPhotoWidth(measured);
+          }}>
+            <FlatList
+              data={photoUrls}
+              horizontal
+              pagingEnabled
+              keyExtractor={(url, index) => `${url}-${index}`}
+              showsHorizontalScrollIndicator={false}
+              style={styles.photoStrip}
+              onMomentumScrollEnd={(event) => setActivePhoto(Math.round(event.nativeEvent.contentOffset.x / photoWidth))}
+              getItemLayout={(_, index) => ({ length: photoWidth, offset: photoWidth * index, index })}
+              renderItem={({ item, index }) => (
+                <View style={{ width: photoWidth, height: 250, borderRadius: 16, overflow: 'hidden', backgroundColor: '#E9EEF3' }}>
+                  {failedPhotos[item] ? (
+                    <View style={styles.photoFallback}>
+                      <Ionicons name="image-outline" size={38} color={colors.textSecondary} />
+                      <Text style={styles.photoFallbackText}>Photo could not be loaded</Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: item }}
+                      style={styles.heroPhoto}
+                      resizeMode="cover"
+                      onError={() => setFailedPhotos((previous) => ({ ...previous, [item]: true }))}
+                    />
+                  )}
+                  <View style={styles.photoCounter}><Text style={styles.photoCounterText}>{index + 1} / {photoUrls.length}</Text></View>
+                </View>
+              )}
+            />
+            {photoUrls.length > 1 && (
+              <View style={styles.photoDots}>
+                {photoUrls.map((url, index) => <View key={`${url}-dot-${index}`} style={[styles.photoDot, index === activePhoto && styles.photoDotActive]} />)}
+              </View>
             )}
-          />
+          </View>
         )}
 
         {/* Status + Title */}
@@ -219,7 +266,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.error + '18', justifyContent: 'center', alignItems: 'center',
   },
   content: { padding: spacing.base, gap: spacing.md },
-  photoStrip: { borderRadius: 16, marginBottom: 4 },
+  photoGallery: { width: '100%', borderRadius: 16, marginBottom: 4, overflow: 'hidden' },
+  photoStrip: { width: '100%', borderRadius: 16 },
+  heroPhoto: { width: '100%', height: '100%' },
+  photoFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  photoFallbackText: { color: colors.textSecondary, fontSize: typography.sm },
+  photoCounter: { position: 'absolute', right: 12, bottom: 12, backgroundColor: 'rgba(0,0,0,0.62)', borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5 },
+  photoCounterText: { color: '#fff', fontSize: typography.xs, fontWeight: '700' },
+  photoDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingTop: 10 },
+  photoDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#C7D0DA' },
+  photoDotActive: { width: 18, backgroundColor: colors.primary },
   card: {
     backgroundColor: colors.white, borderRadius: 16, padding: spacing.base, gap: spacing.sm,
     elevation: 1, shadowColor: colors.shadow,
