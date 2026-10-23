@@ -328,7 +328,7 @@ function ImportPanel({
 
   const tipText = type === 'leads'
     ? 'Duplicate phone numbers and invalid values will be skipped automatically.'
-    : 'Amenities should be semicolon-separated (e.g. Pool;Gym;Security).\n\n• intent must be "rent" or "buy"\n• Flat → flatConfig required (1RK, 1BHK, 2BHK, 3BHK, 4BHK, 4BHK+)\n• Plot → plotArea required (in sqft)\n• Rows missing projectName, intent, propertyType or location are skipped';
+    : 'CSV contains only the core required property fields. Use exact values: propertyType = Flat / Shop / Plot; sanction = Yes / No; parking = Open / Covered / None; water = Municipal Corporation / Gram Panchayat / Tanker / Boring.\n\n• Flat rows also need flatConfig (1RK, 1BHK, 2BHK, 3BHK, 4BHK, 4BHK+).\n• Plot rows also need plotArea (in sqft).\n• intent is optional; if blank, the backend uses buy.\n• Duplicate project name + location + type rows are skipped.';
 
   return (
     <View style={styles.panelContent}>
@@ -338,7 +338,7 @@ function ImportPanel({
         <View style={styles.stepBody}>
           <Text style={styles.stepTitle}>Download Template</Text>
           <Text style={styles.stepDesc}>
-            Get a CSV template with all required columns for {entityLabel.toLowerCase()}.
+            Download the backend-compatible CSV template with only the required property columns.
           </Text>
           <TouchableOpacity
             style={[styles.btn, styles.btnOutline, downloading && styles.btnDisabled]}
