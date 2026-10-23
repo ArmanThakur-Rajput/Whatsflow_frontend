@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, Alert, Platform,
+  Image, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,6 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import axiosInstance from '../../../api/axiosInstance';
-import { storage } from '../../../utils/storage';
 import { usePropertyStore } from '../../../store/propertyStore';
 import { colors } from '../../../theme/colors';
 import { typography } from '../../../theme/typography';
@@ -89,44 +88,24 @@ export default function UploadPropertyPhotosScreen() {
 
     setUploading(true);
     try {
-      // Build multipart/form-data differently for web and native.
-      // On web, ImagePicker returns a blob URL and FormData must receive a Blob/File.
-      // On native, React Native FormData expects the { uri, name, type } file descriptor.
+      // Build multipart/form-data — each photo is appended as a file
       const formData = new FormData();
-      for (const photo of newPhotos) {
-        if (Platform.OS === 'web') {
-          const fileResponse = await fetch(photo.uri);
-          if (!fileResponse.ok) throw new Error(`Could not read selected photo: ${photo.fileName}`);
-          const blob = await fileResponse.blob();
-          formData.append('photos', blob, photo.fileName || `photo_${Date.now()}.jpg`);
-        } else {
-          formData.append('photos', {
-            uri: photo.uri,
-            name: photo.fileName || `photo_${Date.now()}.jpg`,
-            type: photo.mimeType || 'image/jpeg',
-          } as any);
-        }
-      }
-
-      const token = await storage.getToken();
-      const baseURL = (axiosInstance.defaults.baseURL || '').replace(/\/$/, '');
-      const uploadResponse = await fetch(`${baseURL}/property-crm/properties/${encodeURIComponent(propertyId)}/photos`, {
-        method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          // Do not set Content-Type manually: fetch must add the multipart boundary.
-        },
-        body: formData,
+      newPhotos.forEach((p) => {
+        formData.append('photos', {
+          uri: p.uri,
+          name: p.fileName,
+          type: p.mimeType,
+        } as any);
       });
-      const responseBody = await uploadResponse.json().catch(() => ({} as any));
-      if (!uploadResponse.ok) {
-        throw new Error(responseBody?.message || `Photo upload failed (${uploadResponse.status})`);
-      }
+
+      await axiosInstance.post(`/property-crm/properties/${propertyId}/photos`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       Toast.show({ type: 'success', text1: `${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''} uploaded! 🎉` });
       navigation.navigate('PropertyDetail', { propertyId });
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Upload failed', text2: err?.message || 'Check network and image storage configuration.' });
+      Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Upload failed' });
     } finally {
       setUploading(false);
     }

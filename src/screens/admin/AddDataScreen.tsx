@@ -328,10 +328,35 @@ function ImportPanel({
 
   const tipText = type === 'leads'
     ? 'Duplicate phone numbers and invalid values will be skipped automatically.'
-    : 'Amenities should be semicolon-separated (e.g. Pool;Gym;Security).\n\n• intent must be "rent" or "buy"\n• Flat → flatConfig required (1RK, 1BHK, 2BHK, 3BHK, 4BHK, 4BHK+)\n• Plot → plotArea required (in sqft)\n• Rows missing projectName, intent, propertyType or location are skipped';
+    : 'Required columns: projectName, intent, propertyType, location. intent must be rent or buy. Property types may be 1RK, 1BHK, 2BHK, 3BHK, 4BHK+, Bunglow, Plot or Commercial. Optional columns can be left blank. Amenities should be separated with semicolons (e.g. Pool;Gym;Security).';
 
   return (
     <View style={styles.panelContent}>
+      {type === 'properties' && (
+        <View style={styles.stepCard}>
+          <View style={[styles.stepBadge, { backgroundColor: '#059669' }]}>
+            <Ionicons name="download-outline" size={17} color={colors.white} />
+          </View>
+          <View style={styles.stepBody}>
+            <Text style={styles.stepTitle}>Export Existing Properties</Text>
+            <Text style={styles.stepDesc}>
+              Download all property records as a CSV, including optional details saved for each property.
+            </Text>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnExport, exporting && styles.btnDisabled]}
+              onPress={handleExport}
+              disabled={exporting}
+              accessibilityLabel="Export all properties to CSV"
+            >
+              {exporting
+                ? <ActivityIndicator size="small" color="#059669" />
+                : <Ionicons name="download-outline" size={18} color="#059669" />}
+              <Text style={styles.btnExportText}>{exporting ? 'Exporting…' : 'Export Properties CSV'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Step 1 */}
       <View style={styles.stepCard}>
         <View style={styles.stepBadge}><Text style={styles.stepNum}>1</Text></View>

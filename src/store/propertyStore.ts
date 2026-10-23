@@ -148,18 +148,17 @@ export const usePropertyStore = create<PropertyStore>((set, get) => ({
   },
 
   getPropertyById: async (id: string): Promise<Property> => {
-    // Fetch fresh data so recently uploaded/deleted photos and edits are immediately visible.
+    // First check in-memory list (avoids extra network call)
+    const found = get().properties.find((p) => p._id === id);
+    if (found) return found;
+    // Fallback: fetch from server
     const res = await axiosInstance.get(`/property-crm/properties/${id}`);
-    const fresh: Property = res.data.property || res.data;
-    set((state) => ({
-      properties: state.properties.map((property) => property._id === id ? { ...property, ...fresh } : property),
-    }));
-    return fresh;
+    return res.data.property || res.data;
   },
 
   exportCSV: async (filters = {}) => {
     const params = new URLSearchParams(filters as any);
-    const res = await axiosInstance.get(`/property-crm/properties/export-csv?${params.toString()}`, {
+    const res = await axiosInstance.get(`/property-crm/export?${params.toString()}`, {
       responseType: 'text',
     });
     return res.data as string;

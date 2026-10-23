@@ -14,7 +14,6 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import axiosInstance from '../../api/axiosInstance';
 
 const StatCard = ({
   icon, label, value, bgColor, iconColor, onPress, suffix, subLabel, fullWidth,
@@ -60,24 +59,6 @@ export default function AdminDashboardScreen() {
   } = useAdminStore();
   const { stats: propertyStats, fetchStats: fetchPropertyStats } = usePropertyStore();
   const [refreshing, setRefreshing] = React.useState(false);
-  const [pendingPropertyRequests, setPendingPropertyRequests] = React.useState(0);
-
-  const fetchPendingPropertyRequests = React.useCallback(async () => {
-    try {
-      const response = await axiosInstance.get('/property-requests/count?status=pending');
-      setPendingPropertyRequests(Number(response.data?.count ?? 0));
-    } catch {
-      // Fallback supports a backend deployment before the dedicated count route is available.
-      try {
-        const response = await axiosInstance.get('/property-requests?status=pending');
-        const payload = response.data;
-        const rows = Array.isArray(payload) ? payload : (payload?.data ?? payload?.requests ?? payload?.items ?? []);
-        setPendingPropertyRequests(Number(payload?.count ?? rows.length ?? 0));
-      } catch {
-        // Keep the last known count if the network is temporarily unavailable.
-      }
-    }
-  }, []);
   const [selectedBar, setSelectedBar] = React.useState<{ label: string; value: number } | null>(null);
   const [selectedPoint, setSelectedPoint] = React.useState<{ label: string; value: number } | null>(null);
 
@@ -93,13 +74,12 @@ export default function AdminDashboardScreen() {
       fetchPerformanceDashboard();
       fetchMonthlyTrend();
       fetchPropertyStats();
-      fetchPendingPropertyRequests();
-    }, [fetchPendingPropertyRequests])
+    }, [])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAdminStats(), fetchEmployees(), fetchPerformanceDashboard(), fetchMonthlyTrend(), fetchPropertyStats(), fetchPendingPropertyRequests()]);
+    await Promise.all([fetchAdminStats(), fetchEmployees(), fetchPerformanceDashboard(), fetchMonthlyTrend(), fetchPropertyStats()]);
     setRefreshing(false);
   };
 
@@ -197,8 +177,8 @@ export default function AdminDashboardScreen() {
           <StatCard icon="business" label="Total Properties" value={propertyStats.total || 0} bgColor="#FFFBEB" iconColor="#F59E0B" />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="hourglass" label="Pending Leads" value={stats.pendingLeads || 0} bgColor="#FEF3C7" iconColor="#B45309" />
-          <StatCard icon="file-tray-full" label="Property Requests" value={pendingPropertyRequests} bgColor="#F3E8FF" iconColor="#9333EA" onPress={() => navigation.navigate('PropertyRequests')} />
+          <StatCard icon="people" label="Upcoming Visitors" value={stats.upcomingVisitors || 0} bgColor="#EFF6FF" iconColor="#3B82F6" onPress={() => navigation.navigate('AdminVisitors')} />
+          <StatCard icon="hourglass" label="Pending" value={stats.pendingLeads || 0} bgColor="#FEF3C7" iconColor="#B45309" />
         </View>
 
         {/* ── Upcoming Visitors detail card ── */}
@@ -213,9 +193,6 @@ export default function AdminDashboardScreen() {
           <View style={styles.visitorsTextWrap}>
             <Text style={styles.visitorsTitle}>Upcoming Visitors</Text>
             <Text style={styles.visitorsSub}>Today's and upcoming scheduled visitors</Text>
-          </View>
-          <View style={styles.visitorsCountBadge}>
-            <Text style={styles.visitorsCountText}>{stats.upcomingVisitors || 0}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#0891B2" />
         </TouchableOpacity>
@@ -559,9 +536,4 @@ const styles = StyleSheet.create({
   visitorsSub: {
     fontSize: typography.xs, color: '#0891B2', marginTop: 2,
   },
-  visitorsCountBadge: {
-    minWidth: 34, height: 34, paddingHorizontal: 8, borderRadius: 17,
-    backgroundColor: '#CFFAFE', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm,
-  },
-  visitorsCountText: { fontSize: typography.base, fontWeight: '800', color: '#0E7490' },
 });
