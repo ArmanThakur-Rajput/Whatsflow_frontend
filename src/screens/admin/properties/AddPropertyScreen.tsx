@@ -13,7 +13,7 @@ import { spacing } from '../../../theme/spacing';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const FLOOR_OPTIONS = ['Ground', ...Array.from({ length: 99 }, (_, i) => String(i + 1))];
-const PROPERTY_TYPES = ['1RK', '1BHK', '2BHK', '3BHK', '4BHK+', 'Bunglow', 'Plot', 'Commercial'];
+const PROPERTY_TYPES = ['Flat', 'Shop', 'Plot'];
 const PARKING_OPTIONS = ['Open', 'Covered', 'None'];
 const WATER_OPTIONS   = ['Municipal Corporation', 'Gram Panchayat', 'Tanker', 'Boring'];
 const SANCTION_OPTIONS= ['Yes', 'No'];
@@ -90,11 +90,11 @@ const TInput = ({
 );
 
 const OptionPicker = ({
-  options, value, onChange, preserveCurrentValue = true,
-}: { options: string[]; value: string; onChange: (v: string) => void; preserveCurrentValue?: boolean }) => (
+  options, value, onChange,
+}: { options: string[]; value: string; onChange: (v: string) => void }) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionScroll}>
     <View style={styles.optionRow}>
-      {(preserveCurrentValue ? uniqueOptions(options, value) : uniqueOptions(options)).map((opt) => (
+      {uniqueOptions(options, value).map((opt) => (
         <TouchableOpacity
           key={opt}
           style={[styles.optionChip, value === opt && styles.optionChipActive]}
@@ -184,10 +184,10 @@ function getOrdinal(n: number) {
 export default function AddPropertyScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const [editProp, setEditProp] = React.useState<Property | undefined>(route.params?.property);
+  const editProp: Property | undefined = route.params?.property;
   const isEdit = !!editProp;
 
-  const { createProperty, updateProperty, getPropertyById } = usePropertyStore();
+  const { createProperty, updateProperty } = usePropertyStore();
   const [saving, setSaving] = React.useState(false);
 
   // ── Form state ──────────────────────────────────────────────────────────────
@@ -202,6 +202,7 @@ export default function AddPropertyScreen() {
   const [parking,      setParking]      = React.useState(asText(editProp?.parking));
   const [water,        setWater]        = React.useState(asText(editProp?.water));
   // optional
+  const [flatConfig,   setFlatConfig]   = React.useState(asText(editProp?.flatConfig));
   const [buildingArea, setBuildingArea] = React.useState(asText(editProp?.buildingArea));
   const [flatsOnFloor, setFlatsOnFloor] = React.useState(asText(editProp?.flatsOnFloor));
   const [lift,         setLift]         = React.useState(asText(editProp?.lift));
@@ -214,38 +215,20 @@ export default function AddPropertyScreen() {
   const [gmapsLink,    setGmapsLink]    = React.useState(asText(editProp?.gmapsLink));
   const [notes,        setNotes]        = React.useState(asText(editProp?.notes));
 
-  // Support both navigation styles: passing a full property or only editId.
-  React.useEffect(() => {
-    let active = true;
-    const passed = route.params?.property as Property | undefined;
-    const editId = route.params?.editId;
-    if (passed) { setEditProp(passed); return () => { active = false; }; }
-    if (editId) {
-      getPropertyById(String(editId)).then((p) => { if (active) setEditProp(p); }).catch((e: any) => {
-        if (active) Alert.alert('Could not load property', e?.response?.data?.message || e?.message || 'Please try again.');
-      });
-    } else { setEditProp(undefined); }
-    return () => { active = false; };
-  }, [route.params?.editId, route.params?.property, getPropertyById]);
-
   // Navigation can reuse this screen instance when switching between properties.
-  // Sync every field from the loaded property so edit forms never show stale data.
+  // Sync every field from the newly selected property so edit forms never show stale data.
   React.useEffect(() => {
-    const p: any = editProp;
+    const p: any = route.params?.property;
     if (!p) {
       setProjectName(''); setPropertyType(''); setLocation(''); setPrice(''); setFloor('');
       setCarpetArea(''); setBuildupArea(''); setSanction(''); setParking(''); setWater('');
-      setBuildingArea(''); setFlatsOnFloor(''); setLift(''); setWings('');
+      setFlatConfig(''); setBuildingArea(''); setFlatsOnFloor(''); setLift(''); setWings('');
       setFacing(''); setAmenities([]); setOwnerName(''); setOwnerPhone(''); setTenantPhone('');
       setGmapsLink(''); setNotes('');
       return;
     }
     setProjectName(propertyName(p));
-    const rawType = asText(p.propertyType ?? p['Property Type']);
-    const normalizedType = PROPERTY_TYPES.find((t) => t.toLowerCase() === rawType.toLowerCase())
-      || (rawType.toLowerCase() === 'flat' ? PROPERTY_TYPES.find((t) => t.toLowerCase() === asText(p.flatConfig).toLowerCase()) || '' : '')
-      || (rawType.toLowerCase() === 'shop' ? 'Commercial' : rawType.toLowerCase() === 'plot' ? 'Plot' : '');
-    setPropertyType(normalizedType);
+    setPropertyType(asText(p.propertyType ?? p['Property Type']));
     setLocation(asText(p.location));
     setPrice(asText(p.price));
     setFloor(asText(p.floor));
@@ -254,6 +237,7 @@ export default function AddPropertyScreen() {
     setSanction(asText(p.sanction));
     setParking(asText(p.parking));
     setWater(asText(p.water));
+    setFlatConfig(asText(p.flatConfig));
     setBuildingArea(asText(p.buildingArea));
     setFlatsOnFloor(asText(p.flatsOnFloor));
     setLift(asText(p.lift));
@@ -265,7 +249,7 @@ export default function AddPropertyScreen() {
     setTenantPhone(asText(p.tenantPhone));
     setGmapsLink(asText(p.gmapsLink));
     setNotes(asText(p.notes));
-  }, [editProp?._id, editProp?.id, editProp]);
+  }, [route.params?.property?._id, route.params?.property?.id, route.params?.property]);
 
   const priceDisplay = formatPriceDisplay(price);
 
@@ -289,22 +273,16 @@ export default function AddPropertyScreen() {
       projectName, propertyType, location, price, floor,
       carpetArea, buildupArea, sanction: sanction as any,
       parking: parking as any, water: water as any,
-      flatConfig: '', buildingArea, flatsOnFloor,
+      flatConfig, buildingArea, flatsOnFloor,
       lift: lift as any, wings, facing, amenities,
       ownerName, ownerPhone, tenantPhone, gmapsLink, notes,
     };
 
     try {
       setSaving(true);
-      if (isEdit) {
-        await updateProperty(editProp!._id, payload);
-        navigation.goBack();
-      } else {
-        const created: any = await createProperty(payload);
-        const createdId = created?._id || created?.id;
-        if (createdId) navigation.replace('UploadPropertyPhotos', { propertyId: String(createdId), isEdit: false });
-        else navigation.goBack();
-      }
+      if (isEdit) await updateProperty(editProp!._id, payload);
+      else        await createProperty(payload);
+      navigation.goBack();
     } catch (e: any) {
       Alert.alert('Error', e?.response?.data?.message || e.message);
     } finally {
@@ -320,7 +298,11 @@ export default function AddPropertyScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.navTitle}>{isEdit ? 'Edit Property' : 'Add Property'}</Text>
-        <View style={{ width: 52 }} />
+        <TouchableOpacity style={styles.saveHeaderBtn} onPress={handleSave} disabled={saving}>
+          {saving
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={styles.saveHeaderText}>Save</Text>}
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -344,8 +326,18 @@ export default function AddPropertyScreen() {
             </Field>
 
             <Field label="Property Type" required>
-              <OptionPicker options={PROPERTY_TYPES} value={propertyType} onChange={setPropertyType} preserveCurrentValue={false} />
+              <OptionPicker options={PROPERTY_TYPES} value={propertyType} onChange={setPropertyType} />
             </Field>
+
+            {propertyType === 'Flat' && (
+              <Field label="Flat Configuration">
+                <OptionPicker
+                  options={['1RK', '1BHK', '2BHK', '3BHK', '4BHK', '4+BHK']}
+                  value={flatConfig}
+                  onChange={setFlatConfig}
+                />
+              </Field>
+            )}
 
             <Field label="Location" required>
               <TInput value={location} onChange={setLocation} placeholder="e.g. Baner, Pune" />
@@ -516,6 +508,8 @@ const styles = StyleSheet.create({
   navHeader:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.base, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.white },
   backBtn:         { padding: spacing.xs, marginRight: spacing.sm },
   navTitle:        { flex: 1, fontSize: typography.lg, fontWeight: typography.bold, color: colors.textPrimary },
+  saveHeaderBtn:   { backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: 10 },
+  saveHeaderText:  { color: colors.white, fontWeight: typography.semiBold, fontSize: typography.sm },
   scroll:          { padding: spacing.base, paddingBottom: 40 },
   sectionHeader:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg, marginBottom: spacing.xs },
   sectionTitle:    { fontSize: typography.base, fontWeight: typography.bold, color: colors.textPrimary },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, Alert,
+  Image, ActivityIndicator, Alert, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import axiosInstance from '../../../api/axiosInstance';
+import { storage } from '../../../utils/storage';
 import { usePropertyStore } from '../../../store/propertyStore';
 import { colors } from '../../../theme/colors';
 import { typography } from '../../../theme/typography';
@@ -40,20 +41,14 @@ export default function UploadPropertyPhotosScreen() {
   }, []);
 
   const pickImages = async () => {
-    const remainingSlots = 10 - existingPhotos.length - newPhotos.length;
-    if (remainingSlots <= 0) {
-      Toast.show({ type: 'info', text1: 'Photo limit reached', text2: 'A property can have up to 10 photos.' });
-      return;
-    }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted' && status !== 'limited') {
+    if (status !== 'granted') {
       Toast.show({ type: 'error', text1: 'Camera roll permission needed' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'] as any,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
-      selectionLimit: remainingSlots,
       quality: 0.75,
       // No base64 — we send the file directly via multipart
     });
@@ -63,7 +58,7 @@ export default function UploadPropertyPhotosScreen() {
         fileName: a.fileName || `photo_${Date.now()}_${i}.jpg`,
         mimeType: a.mimeType || 'image/jpeg',
       }));
-      setNewPhotos((prev) => [...prev, ...picked].slice(0, Math.max(0, 10 - existingPhotos.length)));
+      setNewPhotos((prev) => [...prev, ...picked]);
     }
   };
 
@@ -86,10 +81,6 @@ export default function UploadPropertyPhotosScreen() {
   };
 
   const handleSave = async () => {
-    if (!propertyId) {
-      Toast.show({ type: 'error', text1: 'Property ID missing', text2: 'Save the property first, then upload photos.' });
-      return;
-    }
     if (newPhotos.length === 0) {
       Toast.show({ type: 'success', text1: 'Property saved!' });
       navigation.navigate('PropertyDetail', { propertyId });
@@ -98,26 +89,44 @@ export default function UploadPropertyPhotosScreen() {
 
     setUploading(true);
     try {
-      // Build multipart/form-data — each photo is appended as a file
+      // Build multipart/form-data differently for web and native.
+      // On web, ImagePicker returns a blob URL and FormData must receive a Blob/File.
+      // On native, React Native FormData expects the { uri, name, type } file descriptor.
       const formData = new FormData();
-      newPhotos.forEach((p) => {
-        formData.append('photos', {
-          uri: p.uri,
-          name: p.fileName,
-          type: p.mimeType,
-        } as any);
-      });
+      for (const photo of newPhotos) {
+        if (Platform.OS === 'web') {
+          const fileResponse = await fetch(photo.uri);
+          if (!fileResponse.ok) throw new Error(`Could not read selected photo: ${photo.fileName}`);
+          const blob = await fileResponse.blob();
+          formData.append('photos', blob, photo.fileName || `photo_${Date.now()}.jpg`);
+        } else {
+          formData.append('photos', {
+            uri: photo.uri,
+            name: photo.fileName || `photo_${Date.now()}.jpg`,
+            type: photo.mimeType || 'image/jpeg',
+          } as any);
+        }
+      }
 
-      // Let Axios/native adapter set the multipart boundary automatically.
-      await axiosInstance.post(`/property-crm/properties/${propertyId}/photos`, formData, {
-        headers: { 'Content-Type': undefined as any },
-        timeout: 120000,
+      const token = await storage.getToken();
+      const baseURL = (axiosInstance.defaults.baseURL || '').replace(/\/$/, '');
+      const uploadResponse = await fetch(`${baseURL}/property-crm/properties/${encodeURIComponent(propertyId)}/photos`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          // Do not set Content-Type manually: fetch must add the multipart boundary.
+        },
+        body: formData,
       });
+      const responseBody = await uploadResponse.json().catch(() => ({} as any));
+      if (!uploadResponse.ok) {
+        throw new Error(responseBody?.message || `Photo upload failed (${uploadResponse.status})`);
+      }
 
       Toast.show({ type: 'success', text1: `${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''} uploaded! 🎉` });
       navigation.navigate('PropertyDetail', { propertyId });
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Upload failed', text2: err?.response?.data?.message || err?.message || 'Check network and image storage configuration.' });
+      Toast.show({ type: 'error', text1: 'Upload failed', text2: err?.message || 'Check network and image storage configuration.' });
     } finally {
       setUploading(false);
     }

@@ -50,7 +50,7 @@ interface PropertyStore {
 
   fetchProperties: (filters?: Record<string, string>) => Promise<void>;
   fetchStats: () => Promise<void>;
-  createProperty: (data: Partial<Property>) => Promise<Property>;
+  createProperty: (data: Partial<Property>) => Promise<void>;
   updateProperty: (id: string, data: Partial<Property>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
   setPropertyStatus: (id: string, status: 'available' | 'sold' | 'rented') => Promise<void>;
@@ -88,10 +88,9 @@ export const usePropertyStore = create<PropertyStore>((set, get) => ({
 
   createProperty: async (data) => {
     try {
-      const res = await axiosInstance.post('/property-crm/properties', data);
+      await axiosInstance.post('/property-crm/properties', data);
       await get().fetchProperties();
       await get().fetchStats();
-      return res.data.property || res.data;
     } catch (err: any) {
       throw err;
     }
@@ -131,7 +130,7 @@ export const usePropertyStore = create<PropertyStore>((set, get) => ({
       const form = new FormData();
       files.forEach((f) => form.append('photos', f));
       await axiosInstance.post(`/property-crm/properties/${id}/photos`, form, {
-        headers: { 'Content-Type': undefined as any },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       await get().fetchProperties();
     } catch (err: any) {

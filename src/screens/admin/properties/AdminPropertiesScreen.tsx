@@ -21,8 +21,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }>
 };
 
 const TYPE_ICONS: Record<string, string> = {
-  '1RK': 'home', '1BHK': 'home', '2BHK': 'home', '3BHK': 'home', '4BHK+': 'home',
-  Bunglow: 'home', Plot: 'map', Commercial: 'storefront', Flat: 'home', Shop: 'storefront',
+  Flat: 'home', Shop: 'storefront', Plot: 'map',
 };
 
 // ── Format price ──────────────────────────────────────────────────────────────
@@ -200,7 +199,7 @@ export default function AdminPropertiesScreen() {
     }
   };
 
-  const TYPE_FILTERS = ['', '1RK', '1BHK', '2BHK', '3BHK', '4BHK+', 'Bunglow', 'Plot', 'Commercial'];
+  const TYPE_FILTERS = ['', 'Flat', 'Shop', 'Plot'];
   const STATUS_FILTERS = ['', 'available', 'sold', 'rented'];
 
   return (

@@ -22,8 +22,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }>
 };
 
 const TYPE_ICONS: Record<string, string> = {
-  '1RK': 'home', '1BHK': 'home', '2BHK': 'home', '3BHK': 'home', '4BHK+': 'home',
-  Bunglow: 'home', Plot: 'map', Commercial: 'storefront', Flat: 'home', Shop: 'storefront',
+  Flat: 'home', Shop: 'storefront', Plot: 'map',
 };
 
 function formatPrice(raw: string) {

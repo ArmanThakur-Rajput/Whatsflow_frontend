@@ -264,7 +264,7 @@ function ImportPanel({
         }
       }
       const res = await axiosInstance.post(importUrl, formData, {
-        headers: { 'Content-Type': undefined as any },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       setSummary(res.data.summary);
       setPickedFileName(null);
@@ -328,7 +328,7 @@ function ImportPanel({
 
   const tipText = type === 'leads'
     ? 'Duplicate phone numbers and invalid values will be skipped automatically.'
-    : 'Required CSV columns: projectName, propertyType, location, price, floor, sanction, parking, water.\nOptional columns can be omitted or left blank. Amenities/photos can be semicolon-separated. Property Type: 1RK, 1BHK, 2BHK, 3BHK, 4BHK+, Bunglow, Plot, Commercial.';
+    : 'Amenities should be semicolon-separated (e.g. Pool;Gym;Security).\n\n• intent must be "rent" or "buy"\n• Flat → flatConfig required (1RK, 1BHK, 2BHK, 3BHK, 4BHK, 4BHK+)\n• Plot → plotArea required (in sqft)\n• Rows missing projectName, intent, propertyType or location are skipped';
 
   return (
     <View style={styles.panelContent}>
@@ -338,7 +338,7 @@ function ImportPanel({
         <View style={styles.stepBody}>
           <Text style={styles.stepTitle}>Download Template</Text>
           <Text style={styles.stepDesc}>
-            Get a CSV template with the required columns for {entityLabel.toLowerCase()}; optional details can be added later.
+            Get a CSV template with all required columns for {entityLabel.toLowerCase()}.
           </Text>
           <TouchableOpacity
             style={[styles.btn, styles.btnOutline, downloading && styles.btnDisabled]}
