@@ -22,10 +22,15 @@ const FACING_OPTIONS  = ['North', 'South', 'East', 'West', 'North-East', 'North-
 const AMENITY_OPTIONS = ['Swimming Pool', 'Gym', 'Clubhouse', 'Garden', 'Security', 'CCTV', 'Power Backup', 'Terrace', 'Visitor Parking', 'Kids Play Area'];
 
 // Remove duplicate choices (case/spacing-insensitive) without losing the original label.
-function uniqueOptions(options: string[], currentValue?: string): string[] {
+function uniqueOptions(options: string[], currentValue?: string | string[]): string[] {
   const result: string[] = [];
   const seen = new Set<string>();
-  [...options, ...(currentValue?.trim() ? [currentValue.trim()] : [])].forEach((item) => {
+  const selectedValues = Array.isArray(currentValue)
+    ? currentValue
+    : currentValue == null || !String(currentValue).trim()
+      ? []
+      : [String(currentValue)];
+  [...options, ...selectedValues].forEach((item) => {
     const label = String(item ?? '').trim();
     if (!label) return;
     const key = label.replace(/\s+/g, ' ').toLocaleLowerCase();
