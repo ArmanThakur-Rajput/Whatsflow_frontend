@@ -282,6 +282,17 @@ export default function AdminPropertiesScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.requestsBtn, exporting && { opacity: 0.65 }]}
+            onPress={handleExportCSV}
+            disabled={exporting}
+            accessibilityLabel="Export properties CSV"
+          >
+            {exporting
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Ionicons name="download-outline" size={20} color={colors.primary} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.addBtn}
             onPress={() => navigation.navigate('AddProperty')}
           >
