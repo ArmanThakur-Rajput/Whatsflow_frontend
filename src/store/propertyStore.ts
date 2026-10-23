@@ -54,6 +54,7 @@ interface PropertyStore {
   setPropertyStatus: (id: string, status: 'available' | 'sold' | 'rented') => Promise<void>;
   uploadPhotos: (id: string, files: any[]) => Promise<void>;
   deletePhoto: (id: string, url: string) => Promise<void>;
+  getPropertyById: (id: string) => Promise<Property>;
   exportCSV: (filters?: Record<string, string>) => Promise<string>;
 }
 
@@ -142,6 +143,15 @@ export const usePropertyStore = create<PropertyStore>((set, get) => ({
     } catch (err: any) {
       throw err;
     }
+  },
+
+  getPropertyById: async (id: string): Promise<Property> => {
+    // First check in-memory list (avoids extra network call)
+    const found = get().properties.find((p) => p._id === id);
+    if (found) return found;
+    // Fallback: fetch from server
+    const res = await axiosInstance.get(`/property-crm/properties/${id}`);
+    return res.data.property || res.data;
   },
 
   exportCSV: async (filters = {}) => {

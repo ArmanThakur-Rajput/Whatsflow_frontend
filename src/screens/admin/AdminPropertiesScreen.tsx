@@ -13,6 +13,7 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import axiosInstance from '../../api/axiosInstance';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   available: { bg: '#ECFDF5', text: '#059669', label: 'Available' },
@@ -24,7 +25,6 @@ const TYPE_ICONS: Record<string, string> = {
   Flat: 'home', Shop: 'storefront', Plot: 'map',
 };
 
-// ── Format price ──────────────────────────────────────────────────────────────
 function formatPrice(raw: string) {
   if (!raw) return '—';
   const n = parseFloat(raw.replace(/[^0-9.]/g, ''));
@@ -34,7 +34,6 @@ function formatPrice(raw: string) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
 
-// ── WhatsApp draft ────────────────────────────────────────────────────────────
 function buildWhatsAppDraft(p: Property): string {
   const lines: string[] = [];
   lines.push(`🏠 *${p.projectName}*`);
@@ -56,7 +55,6 @@ function buildWhatsAppDraft(p: Property): string {
   return lines.join('\n');
 }
 
-// Highlight the matching search text wherever it appears in a visible field.
 const HighlightText = ({ text, query, style }: { text: string; query: string; style: any }) => {
   const value = String(text ?? '');
   const q = query.trim();
@@ -71,7 +69,6 @@ const HighlightText = ({ text, query, style }: { text: string; query: string; st
   );
 };
 
-// ── Property Card ─────────────────────────────────────────────────────────────
 const PropertyCard = ({
   item, onOpen, onEdit, onWhatsApp, onDelete, search,
 }: {
@@ -123,13 +120,6 @@ const PropertyCard = ({
   );
 };
 
-const Chip = ({ icon, label }: { icon: string; label: string }) => (
-  <View style={styles.chip}>
-    <Ionicons name={icon as any} size={11} color={colors.textSecondary} />
-    <Text style={styles.chipText}>{label}</Text>
-  </View>
-);
-
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function AdminPropertiesScreen() {
   const navigation = useNavigation<any>();
@@ -139,21 +129,36 @@ export default function AdminPropertiesScreen() {
   const [search, setSearch] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
+  const [pendingCount, setPendingCount] = React.useState(0);
 
   const load = React.useCallback(() => {
     fetchProperties({});
     fetchStats();
   }, []);
 
-  useFocusEffect(React.useCallback(() => { load(); }, [load]));
+  // Fetch pending request count for badge
+  const loadPendingCount = React.useCallback(async () => {
+    try {
+      const res = await axiosInstance.get('/property-requests?status=pending');
+      const data = res.data?.data ?? res.data;
+      const rows = Array.isArray(data) ? data : (data?.data ?? []);
+      setPendingCount(rows.length);
+    } catch {
+      // silent — badge just won't show
+    }
+  }, []);
+
+  useFocusEffect(React.useCallback(() => {
+    load();
+    loadPendingCount();
+  }, [load, loadPendingCount]));
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await load();
+    await Promise.all([load(), loadPendingCount()]);
     setRefreshing(false);
   };
 
-  // Search filter (client-side)
   const filtered = React.useMemo(() => {
     if (!search.trim()) return properties;
     const q = search.toLowerCase();
@@ -199,7 +204,6 @@ export default function AdminPropertiesScreen() {
     }
   };
 
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* ── Header ── */}
@@ -209,6 +213,20 @@ export default function AdminPropertiesScreen() {
           <Text style={styles.headerSub}>{stats.total} properties</Text>
         </View>
         <View style={styles.headerBtns}>
+          {/* 🔔 Property Requests Icon with badge */}
+          <TouchableOpacity
+            style={styles.requestsBtn}
+            onPress={() => navigation.navigate('PropertyRequests')}
+            accessibilityLabel="Property Requests"
+          >
+            <Ionicons name="clipboard-outline" size={20} color={colors.primary} />
+            {pendingCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{pendingCount > 99 ? '99+' : pendingCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.exportBtn}
             onPress={handleExportCSV}
@@ -284,16 +302,14 @@ const styles = StyleSheet.create({
   headerTitle:     { fontSize: typography.xl, fontWeight: typography.bold, color: colors.textPrimary },
   headerSub:       { fontSize: typography.xs, color: colors.textSecondary, marginTop: 2 },
   headerBtns:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  requestsBtn:     { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  badge:           { position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', borderRadius: 10, minWidth: 18, height: 18, paddingHorizontal: 3, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: colors.background },
+  badgeText:       { color: '#fff', fontSize: 9, fontWeight: '800' },
   exportBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10, paddingHorizontal: spacing.sm, paddingVertical: 6 },
   exportLabel:     { fontSize: typography.xs, color: colors.primary, fontWeight: typography.semiBold },
   addBtn:          { backgroundColor: colors.primary, width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   searchWrap:      { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, marginHorizontal: spacing.base, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
   searchInput:     { flex: 1, paddingVertical: 10, paddingHorizontal: spacing.sm, fontSize: typography.sm, color: colors.textPrimary },
-  filterRow:       { flexDirection: 'row', paddingHorizontal: spacing.base, gap: spacing.xs, marginBottom: spacing.xs },
-  filterChip:      { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  filterChipActive:{ backgroundColor: colors.primary, borderColor: colors.primary },
-  filterChipText:  { fontSize: typography.xs, color: colors.textSecondary },
-  filterChipTextActive: { color: colors.white, fontWeight: typography.semiBold },
   card:            { backgroundColor: colors.white, borderRadius: 16, padding: spacing.base, marginBottom: spacing.md, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, borderWidth: 1, borderColor: '#F0F0F0' },
   cardHeader:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   cardIconWrap:    { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
@@ -305,9 +321,9 @@ const styles = StyleSheet.create({
   cardActions:     { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#F0F0F0', marginTop: spacing.sm, paddingTop: spacing.sm, gap: spacing.sm },
   actionBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   actionLabel:     { fontSize: typography.xs, fontWeight: typography.semiBold },
-  matchHighlight: { color: '#075FE4', textDecorationLine: 'underline', backgroundColor: '#E8F1FF', fontWeight: '700' },
-  openHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 6 },
-  openHintText: { fontSize: 10, color: colors.textLight },
+  matchHighlight:  { color: '#075FE4', textDecorationLine: 'underline', backgroundColor: '#E8F1FF', fontWeight: '700' },
+  openHint:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 6 },
+  openHintText:    { fontSize: 10, color: colors.textLight },
   centered:        { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60, gap: spacing.md },
   emptyText:       { fontSize: typography.base, color: colors.textSecondary },
 });

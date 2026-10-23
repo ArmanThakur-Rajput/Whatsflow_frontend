@@ -59,10 +59,17 @@ export default function NotificationsScreen() {
 
   const handleNotifPress = (item: NotificationItem) => {
     if (!item.isRead) markAsRead(item._id);
-    // Visitor date reminder mein leadId hota hai — us lead ko open karo
-    const leadId = (item as any).data?.leadId;
-    if (leadId) {
-      navigation.navigate('AdminLeadDetail', { leadId });
+
+    const data = (item as any).data || {};
+    // Property requests reminder — navigate to PropertyRequests screen
+    if (data.screen === 'PropertyRequests' || data.type === 'pending_requests_reminder') {
+      navigation.navigate('PropertyRequests');
+      return;
+    }
+    // Visitor date reminder / lead notification
+    if (data.leadId) {
+      navigation.navigate('AdminLeadDetail', { leadId: data.leadId });
+      return;
     }
   };
 

@@ -43,6 +43,7 @@ import TermsScreen from '../screens/common/TermsScreen';
 import PrivacyScreen from '../screens/common/PrivacyScreen';
 import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import SendNotificationScreen from '../screens/admin/SendNotificationScreen';
+import PropertyRequestsScreen from '../screens/admin/PropertyRequestsScreen';
 import AdminVisitorsScreen from '../screens/admin/AdminVisitorsScreen';
 import ThemePickerScreen from '../screens/common/ThemePickerScreen';
 import LeadCardSettingsScreen from '../screens/common/LeadCardSettingsScreen';
@@ -143,6 +144,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="SendNotification" component={SendNotificationScreen} />
       <Stack.Screen name="AdminVisitors" component={AdminVisitorsScreen} />
+      <Stack.Screen name="PropertyRequests" component={PropertyRequestsScreen} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
       <Stack.Screen name="Terms" component={TermsScreen} />
