@@ -134,26 +134,38 @@ export default function PropertyDetailScreen() {
           {property.price ? <Text style={styles.price}>₹ {formatPrice(property.price)}</Text> : null}
         </View>
 
-        {/* Property Details */}
+        {/* Property Details — show every saved field from Add/Edit Property */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Property Details</Text>
-          <InfoRow icon="location-outline" label="Location" value={property.location} />
+          <InfoRow icon="location-outline" label="Location" value={property.location || '—'} />
           {property.address && <InfoRow icon="map-outline" label="Address" value={property.address} />}
-          {property.carpetArea && <InfoRow icon="expand-outline" label="Carpet Area" value={`${property.carpetArea} sqft`} />}
-          {property.buildupArea && <InfoRow icon="grid-outline" label="Buildup Area" value={`${property.buildupArea} sqft`} />}
+          {property.floor && <InfoRow icon="layers-outline" label="Floor" value={property.floor === 'Ground' ? 'Ground Floor' : `${property.floor}${/^\d+$/.test(property.floor) ? (Number(property.floor) % 100 >= 11 && Number(property.floor) % 100 <= 13 ? 'th' : ({1:'st',2:'nd',3:'rd'} as Record<number,string>)[Number(property.floor) % 10] || 'th') : ''} Floor`} />}
+          {property.flatConfig && <InfoRow icon="home-outline" label="Configuration" value={property.flatConfig} />}
+          {property.carpetArea && <InfoRow icon="expand-outline" label="Carpet Area" value={`${property.carpetArea}${/sq\.?\s*ft|sqft/i.test(property.carpetArea) ? '' : ' sqft'}`} />}
+          {property.buildupArea && <InfoRow icon="grid-outline" label="Buildup Area" value={`${property.buildupArea}${/sq\.?\s*ft|sqft/i.test(property.buildupArea) ? '' : ' sqft'}`} />}
+          {property.plotArea && <InfoRow icon="map-outline" label="Plot Area" value={property.plotArea} />}
+          {property.buildingArea && <InfoRow icon="business-outline" label="Building Area" value={property.buildingArea} />}
+          {property.flatsOnFloor && <InfoRow icon="business-outline" label="Flats on Same Floor" value={property.flatsOnFloor} />}
+          {property.wings && <InfoRow icon="git-branch-outline" label="Wings" value={property.wings} />}
+          {property.facing && <InfoRow icon="compass-outline" label="Facing" value={property.facing} />}
+          {property.sanction && <InfoRow icon="document-attach-outline" label="Sanction" value={property.sanction} />}
           {property.parking && <InfoRow icon="car-outline" label="Parking" value={property.parking} />}
+          {property.water && <InfoRow icon="water-outline" label="Water Source" value={property.water} />}
+          {property.lift && <InfoRow icon="business-outline" label="Lift" value={property.lift} />}
           {property.amenities?.length ? (
             <InfoRow icon="checkmark-circle-outline" label="Amenities" value={property.amenities.join(', ')} />
           ) : null}
+          {property.gmapsLink && <InfoRow icon="navigate-outline" label="Google Maps Link" value={property.gmapsLink} />}
           {property.notes && <InfoRow icon="document-text-outline" label="Notes" value={property.notes} />}
         </View>
 
-        {/* Owner Details */}
-        {(property.ownerName || property.ownerPhone) && (
+        {/* Contact Details */}
+        {(property.ownerName || property.ownerPhone || property.tenantPhone) && (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Owner Details</Text>
+            <Text style={styles.sectionTitle}>Contact Details</Text>
             {property.ownerName && <InfoRow icon="person-outline" label="Owner Name" value={property.ownerName} />}
-            {property.ownerPhone && <InfoRow icon="call-outline" label="Phone" value={property.ownerPhone} />}
+            {property.ownerPhone && <InfoRow icon="call-outline" label="Owner Phone" value={property.ownerPhone} />}
+            {property.tenantPhone && <InfoRow icon="call-outline" label="Tenant Phone" value={property.tenantPhone} />}
           </View>
         )}
 
