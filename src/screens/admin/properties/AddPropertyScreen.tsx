@@ -13,13 +13,39 @@ import { spacing } from '../../../theme/spacing';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const FLOOR_OPTIONS = ['Ground', ...Array.from({ length: 99 }, (_, i) => String(i + 1))];
-const PROPERTY_TYPES = ['1RK', '1BHK', '2BHK', '3BHK', '4BHK+', 'Plot', 'Commercial'];
-const PARKING_OPTIONS = ['Open', 'Covered', 'None', '2 wheeler', '4 wheeler', 'Both', 'No Parking'];
+const PROPERTY_TYPES = ['Flat', 'Shop', 'Plot'];
+const PARKING_OPTIONS = ['Open', 'Covered', 'None'];
 const WATER_OPTIONS   = ['Municipal Corporation', 'Gram Panchayat', 'Tanker', 'Boring'];
-const SANCTION_OPTIONS= ['Yes', 'No', 'Gram Panchayat', 'Municipal Corporation', 'PMC', 'PCMC', 'PMRDA', 'NA'];
+const SANCTION_OPTIONS= ['Yes', 'No'];
 const LIFT_OPTIONS    = ['Yes', 'No'];
 const FACING_OPTIONS  = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
 const AMENITY_OPTIONS = ['Swimming Pool', 'Gym', 'Clubhouse', 'Garden', 'Security', 'CCTV', 'Power Backup', 'Terrace', 'Visitor Parking', 'Kids Play Area'];
+
+// Remove duplicate choices (case/spacing-insensitive) without losing the original label.
+function uniqueOptions(options: string[], currentValue?: string): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  [...options, ...(currentValue?.trim() ? [currentValue.trim()] : [])].forEach((item) => {
+    const label = String(item ?? '').trim();
+    if (!label) return;
+    const key = label.replace(/\s+/g, ' ').toLocaleLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(label.replace(/\s+/g, ' '));
+  });
+  return result;
+}
+
+function asText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) return value.map((v) => String(v ?? '')).join(', ');
+  if (typeof value === 'object') return '';
+  return String(value);
+}
+
+function propertyName(p: any): string {
+  return asText(p?.projectName ?? p?.society ?? p?.['society/project'] ?? p?.name);
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
@@ -63,7 +89,7 @@ const OptionPicker = ({
 }: { options: string[]; value: string; onChange: (v: string) => void }) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionScroll}>
     <View style={styles.optionRow}>
-      {options.map((opt) => (
+      {uniqueOptions(options, value).map((opt) => (
         <TouchableOpacity
           key={opt}
           style={[styles.optionChip, value === opt && styles.optionChipActive]}
@@ -82,7 +108,7 @@ const MultiPicker = ({
   options, values, onChange,
 }: { options: string[]; values: string[]; onChange: (v: string[]) => void }) => (
   <View style={styles.multiWrap}>
-    {options.map((opt) => {
+    {uniqueOptions(options, values).map((opt) => {
       const selected = values.includes(opt);
       return (
         <TouchableOpacity
@@ -110,24 +136,6 @@ function formatPriceDisplay(raw: string): string {
   if (n > 0)         return `₹${n.toLocaleString('en-IN')}`;
   return '';
 }
-
-// ── Dynamic dropdown ─────────────────────────────────────────────────────────
-const DynamicDropdown = ({ options, value, onChange, placeholder }: { options: string[]; value: string; onChange: (v: string) => void; placeholder: string }) => {
-  const [open, setOpen] = React.useState(false);
-  return (
-    <View>
-      <TouchableOpacity style={styles.dropdownBtn} onPress={() => setOpen(!open)}>
-        <Text style={value ? styles.dropdownValue : styles.dropdownPlaceholder}>{value || placeholder}</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
-      {open && <View style={styles.dropdownList}><ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
-        {options.map((option) => <TouchableOpacity key={option} style={[styles.dropdownItem, value === option && styles.dropdownItemActive]} onPress={() => { onChange(option); setOpen(false); }}>
-          <Text style={[styles.dropdownItemText, value === option && { color: colors.primary, fontWeight: '600' }]}>{option}</Text>
-        </TouchableOpacity>)}
-      </ScrollView></View>}
-    </View>
-  );
-};
 
 // ── Floor Picker (scrollable dropdown) ───────────────────────────────────────
 const FloorPicker = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
@@ -174,35 +182,69 @@ export default function AddPropertyScreen() {
   const editProp: Property | undefined = route.params?.property;
   const isEdit = !!editProp;
 
-  const { createProperty, updateProperty, properties, fetchProperties } = usePropertyStore();
-  React.useEffect(() => { if (!properties.length) fetchProperties(); }, []);
-  const dynamicOptions = (field: string, defaults: string[]) => Array.from(new Set([ ...defaults, ...properties.map((p: any) => p?.[field]).filter((v: any) => typeof v === 'string' && v.trim()).map((v: string) => v.trim()) ]));
+  const { createProperty, updateProperty } = usePropertyStore();
   const [saving, setSaving] = React.useState(false);
 
   // ── Form state ──────────────────────────────────────────────────────────────
-  const [projectName,  setProjectName]  = React.useState((editProp as any)?.projectName || (editProp as any)?.society || (editProp as any)?.['society/project'] || '');
-  const [propertyType, setPropertyType] = React.useState(editProp?.propertyType || '');
-  const [location,     setLocation]     = React.useState(editProp?.location     || '');
-  const [price,        setPrice]        = React.useState(editProp?.price        || '');
-  const [floor,        setFloor]        = React.useState(editProp?.floor        || '');
-  const [carpetArea,   setCarpetArea]   = React.useState(editProp?.carpetArea   || '');
-  const [buildupArea,  setBuildupArea]  = React.useState(editProp?.buildupArea  || '');
-  const [sanction,     setSanction]     = React.useState(editProp?.sanction     || '');
-  const [parking,      setParking]      = React.useState(editProp?.parking      || '');
-  const [water,        setWater]        = React.useState(editProp?.water        || '');
+  const [projectName,  setProjectName]  = React.useState(propertyName(editProp));
+  const [propertyType, setPropertyType] = React.useState(asText((editProp as any)?.propertyType ?? (editProp as any)?.['Property Type']));
+  const [location,     setLocation]     = React.useState(asText(editProp?.location));
+  const [price,        setPrice]        = React.useState(asText(editProp?.price));
+  const [floor,        setFloor]        = React.useState(asText(editProp?.floor));
+  const [carpetArea,   setCarpetArea]   = React.useState(asText(editProp?.carpetArea));
+  const [buildupArea,  setBuildupArea]  = React.useState(asText(editProp?.buildupArea ?? (editProp as any)?.builtUpArea));
+  const [sanction,     setSanction]     = React.useState(asText(editProp?.sanction));
+  const [parking,      setParking]      = React.useState(asText(editProp?.parking));
+  const [water,        setWater]        = React.useState(asText(editProp?.water));
   // optional
-  // Flat configuration is now captured directly in Property Type.
-  const [buildingArea, setBuildingArea] = React.useState(editProp?.buildingArea || '');
-  const [flatsOnFloor, setFlatsOnFloor] = React.useState(editProp?.flatsOnFloor || '');
-  const [lift,         setLift]         = React.useState(editProp?.lift         || '');
-  const [wings,        setWings]        = React.useState(editProp?.wings        || '');
-  const [facing,       setFacing]       = React.useState(editProp?.facing       || '');
-  const [amenities,    setAmenities]    = React.useState<string[]>(editProp?.amenities || []);
-  const [ownerName,    setOwnerName]    = React.useState(editProp?.ownerName    || '');
-  const [ownerPhone,   setOwnerPhone]   = React.useState(editProp?.ownerPhone   || '');
-  const [tenantPhone,  setTenantPhone]  = React.useState(editProp?.tenantPhone  || '');
-  const [gmapsLink,    setGmapsLink]    = React.useState(editProp?.gmapsLink    || '');
-  const [notes,        setNotes]        = React.useState(editProp?.notes        || '');
+  const [flatConfig,   setFlatConfig]   = React.useState(asText(editProp?.flatConfig));
+  const [buildingArea, setBuildingArea] = React.useState(asText(editProp?.buildingArea));
+  const [flatsOnFloor, setFlatsOnFloor] = React.useState(asText(editProp?.flatsOnFloor));
+  const [lift,         setLift]         = React.useState(asText(editProp?.lift));
+  const [wings,        setWings]        = React.useState(asText(editProp?.wings));
+  const [facing,       setFacing]       = React.useState(asText(editProp?.facing));
+  const [amenities,    setAmenities]    = React.useState<string[]>(Array.isArray(editProp?.amenities) ? editProp.amenities.map(asText).filter(Boolean) : typeof (editProp as any)?.amenities === 'string' ? (editProp as any).amenities.split(',').map((v: string) => v.trim()).filter(Boolean) : []);
+  const [ownerName,    setOwnerName]    = React.useState(asText(editProp?.ownerName));
+  const [ownerPhone,   setOwnerPhone]   = React.useState(asText(editProp?.ownerPhone));
+  const [tenantPhone,  setTenantPhone]  = React.useState(asText(editProp?.tenantPhone));
+  const [gmapsLink,    setGmapsLink]    = React.useState(asText(editProp?.gmapsLink));
+  const [notes,        setNotes]        = React.useState(asText(editProp?.notes));
+
+  // Navigation can reuse this screen instance when switching between properties.
+  // Sync every field from the newly selected property so edit forms never show stale data.
+  React.useEffect(() => {
+    const p: any = route.params?.property;
+    if (!p) {
+      setProjectName(''); setPropertyType(''); setLocation(''); setPrice(''); setFloor('');
+      setCarpetArea(''); setBuildupArea(''); setSanction(''); setParking(''); setWater('');
+      setFlatConfig(''); setBuildingArea(''); setFlatsOnFloor(''); setLift(''); setWings('');
+      setFacing(''); setAmenities([]); setOwnerName(''); setOwnerPhone(''); setTenantPhone('');
+      setGmapsLink(''); setNotes('');
+      return;
+    }
+    setProjectName(propertyName(p));
+    setPropertyType(asText(p.propertyType ?? p['Property Type']));
+    setLocation(asText(p.location));
+    setPrice(asText(p.price));
+    setFloor(asText(p.floor));
+    setCarpetArea(asText(p.carpetArea));
+    setBuildupArea(asText(p.buildupArea ?? p.builtUpArea));
+    setSanction(asText(p.sanction));
+    setParking(asText(p.parking));
+    setWater(asText(p.water));
+    setFlatConfig(asText(p.flatConfig));
+    setBuildingArea(asText(p.buildingArea));
+    setFlatsOnFloor(asText(p.flatsOnFloor));
+    setLift(asText(p.lift));
+    setWings(asText(p.wings));
+    setFacing(asText(p.facing));
+    setAmenities(Array.isArray(p.amenities) ? p.amenities.map(asText).filter(Boolean) : typeof p.amenities === 'string' ? p.amenities.split(',').map((v: string) => v.trim()).filter(Boolean) : []);
+    setOwnerName(asText(p.ownerName));
+    setOwnerPhone(asText(p.ownerPhone));
+    setTenantPhone(asText(p.tenantPhone));
+    setGmapsLink(asText(p.gmapsLink));
+    setNotes(asText(p.notes));
+  }, [route.params?.property?._id, route.params?.property?.id, route.params?.property]);
 
   const priceDisplay = formatPriceDisplay(price);
 
@@ -212,6 +254,9 @@ export default function AddPropertyScreen() {
     if (!location.trim())    return 'Location is required';
     if (!price.trim())       return 'Price is required';
     if (!floor)              return 'Floor is required';
+    if (!sanction)           return 'Sanction is required';
+    if (!parking)            return 'Parking is required';
+    if (!water)              return 'Water source is required';
     return null;
   };
 
@@ -223,7 +268,7 @@ export default function AddPropertyScreen() {
       projectName, propertyType, location, price, floor,
       carpetArea, buildupArea, sanction: sanction as any,
       parking: parking as any, water: water as any,
-      buildingArea, flatsOnFloor,
+      flatConfig, buildingArea, flatsOnFloor,
       lift: lift as any, wings, facing, amenities,
       ownerName, ownerPhone, tenantPhone, gmapsLink, notes,
     };
@@ -276,9 +321,18 @@ export default function AddPropertyScreen() {
             </Field>
 
             <Field label="Property Type" required>
-              <DynamicDropdown options={dynamicOptions('propertyType', PROPERTY_TYPES)} value={propertyType} onChange={setPropertyType} placeholder="Select property type" />
+              <OptionPicker options={PROPERTY_TYPES} value={propertyType} onChange={setPropertyType} />
             </Field>
 
+            {propertyType === 'Flat' && (
+              <Field label="Flat Configuration">
+                <OptionPicker
+                  options={['1RK', '1BHK', '2BHK', '3BHK', '4BHK', '4+BHK']}
+                  value={flatConfig}
+                  onChange={setFlatConfig}
+                />
+              </Field>
+            )}
 
             <Field label="Location" required>
               <TInput value={location} onChange={setLocation} placeholder="e.g. Baner, Pune" />
@@ -336,15 +390,15 @@ export default function AddPropertyScreen() {
             </View>
 
             <Field label="Sanction" required>
-              <OptionPicker options={dynamicOptions('sanction', SANCTION_OPTIONS)} value={sanction} onChange={setSanction} />
+              <OptionPicker options={SANCTION_OPTIONS} value={sanction} onChange={setSanction} />
             </Field>
 
             <Field label="Parking" required>
-              <OptionPicker options={dynamicOptions('parking', PARKING_OPTIONS)} value={parking} onChange={setParking} />
+              <OptionPicker options={PARKING_OPTIONS} value={parking} onChange={setParking} />
             </Field>
 
             <Field label="Water Source" required>
-              <OptionPicker options={dynamicOptions('water', WATER_OPTIONS)} value={water} onChange={setWater} />
+              <OptionPicker options={WATER_OPTIONS} value={water} onChange={setWater} />
             </Field>
 
           </View>

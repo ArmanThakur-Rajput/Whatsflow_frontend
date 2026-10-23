@@ -36,25 +36,23 @@ function formatPrice(raw: string) {
 
 // ── WhatsApp draft ────────────────────────────────────────────────────────────
 function buildWhatsAppDraft(p: Property): string {
-  const lines: string[] = [
-    '*KIN PROPERTY MANAGEMENT*',
-    '_Your Property, Our Trust_',
-    '━━━━━━━━━━━━━━━━━━',
-    `🏠 *${p.projectName || (p as any).society || (p as any)["society/project"] || 'Property'}*`,
-    `📍 Location: ${p.location || 'On request'}`,
-    `🏷️ Property Type: ${p.propertyType || (p as any).flatConfig || '—'}`,
-    `💰 Price: ${formatPrice(p.price || '')}`,
-  ];
-  const optional: Array<[string, any]> = [
-    ['Floor', p.floor], ['Carpet Area', p.carpetArea], ['Built-up Area', p.buildupArea],
-    ['Sanction', p.sanction], ['Parking', p.parking], ['Water', p.water],
-    ['Building Area', p.buildingArea], ['Flats on Floor', p.flatsOnFloor],
-    ['Lift', p.lift], ['Wings', p.wings], ['Facing', p.facing],
-    ['Amenities', p.amenities?.length ? p.amenities.join(', ') : null],
-    ['Address', p.address], ['Google Maps', p.gmapsLink], ['Notes', p.notes],
-  ];
-  optional.forEach(([label, value]) => { if (value !== undefined && value !== null && value !== '') lines.push(`${label}: ${Array.isArray(value) ? value.join(', ') : String(value)}`); });
-  lines.push('━━━━━━━━━━━━━━━━━━', '*Kin Property Management*', '_Your Property, Our Trust_');
+  const lines: string[] = [];
+  lines.push(`🏠 *${p.projectName}*`);
+  lines.push(`📍 ${p.location}`);
+  lines.push(`🏷️ Type: ${p.propertyType}${p.flatConfig ? ` | ${p.flatConfig}` : ''}`);
+  lines.push(`💰 Price: ${formatPrice(p.price)}`);
+  if (p.floor)        lines.push(`🏢 Floor: ${p.floor}`);
+  if (p.carpetArea)   lines.push(`📐 Carpet Area: ${p.carpetArea}`);
+  if (p.buildupArea)  lines.push(`📐 Buildup Area: ${p.buildupArea}`);
+  lines.push(`✅ Sanction: ${p.sanction}`);
+  lines.push(`🚗 Parking: ${p.parking}`);
+  lines.push(`💧 Water: ${p.water}`);
+  if (p.lift)         lines.push(`🛗 Lift: ${p.lift}`);
+  if (p.facing)       lines.push(`🧭 Facing: ${p.facing}`);
+  if (p.amenities?.length) lines.push(`✨ Amenities: ${p.amenities.join(', ')}`);
+  if (p.gmapsLink)    lines.push(`📌 Map: ${p.gmapsLink}`);
+  lines.push('');
+  lines.push('_For more details, contact us._');
   return lines.join('\n');
 }
 

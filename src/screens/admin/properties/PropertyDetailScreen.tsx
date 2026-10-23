@@ -87,10 +87,6 @@ export default function PropertyDetailScreen() {
   if (!property) return null;
 
   const statusColor = property.status === 'available' ? colors.success : property.status === 'sold' ? colors.error : colors.warning;
-  const knownKeys = new Set(['_id','id','__v','projectName','society','society/project','propertyType','intent','price','location','address','floor','flatConfig','carpetArea','buildupArea','plotArea','buildingArea','flatsOnFloor','wings','facing','sanction','parking','water','lift','amenities','gmapsLink','notes','ownerName','ownerPhone','tenantPhone','photos','status','createdAt','updatedAt','tenantId','orgId','sessionId']);
-  const dynamicEntries = Object.entries(property as any).filter(([key, value]) => !knownKeys.has(key) && value !== null && value !== undefined && value !== '' && !(Array.isArray(value) && value.length === 0));
-  const prettyLabel = (key: string) => key.replace(/([A-Z])/g, ' $1').replace(/[_-]/g, ' ').replace(/^./, c => c.toUpperCase());
-  const displayValue = (value: any) => Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : String(value);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -98,7 +94,7 @@ export default function PropertyDetailScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{property.projectName || (property as any).society || (property as any)['society/project'] || 'Property'}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>{property.projectName}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('AddProperty', { editId: property._id })}>
             <Ionicons name="pencil-outline" size={18} color={colors.primary} />
@@ -133,8 +129,8 @@ export default function PropertyDetailScreen() {
               {property.status === 'available' ? 'Available' : property.status === 'sold' ? 'Sold' : 'Rented'}
             </Text>
           </View>
-          <Text style={styles.name}>{property.projectName || (property as any).society || (property as any)['society/project'] || 'Property'}</Text>
-          <Text style={styles.sub}>{property.propertyType || (property as any).flatConfig || 'Property'}{property.intent ? ` · ${property.intent === 'buy' ? 'For Sale' : 'For Rent'}` : ''}</Text>
+          <Text style={styles.name}>{property.projectName}</Text>
+          <Text style={styles.sub}>{property.propertyType} · {property.intent === 'buy' ? 'For Sale' : 'For Rent'}</Text>
           {property.price ? <Text style={styles.price}>₹ {formatPrice(property.price)}</Text> : null}
         </View>
 
@@ -144,6 +140,7 @@ export default function PropertyDetailScreen() {
           <InfoRow icon="location-outline" label="Location" value={property.location || '—'} />
           {property.address && <InfoRow icon="map-outline" label="Address" value={property.address} />}
           {property.floor && <InfoRow icon="layers-outline" label="Floor" value={property.floor === 'Ground' ? 'Ground Floor' : `${property.floor}${/^\d+$/.test(property.floor) ? (Number(property.floor) % 100 >= 11 && Number(property.floor) % 100 <= 13 ? 'th' : ({1:'st',2:'nd',3:'rd'} as Record<number,string>)[Number(property.floor) % 10] || 'th') : ''} Floor`} />}
+          {property.flatConfig && <InfoRow icon="home-outline" label="Configuration" value={property.flatConfig} />}
           {property.carpetArea && <InfoRow icon="expand-outline" label="Carpet Area" value={`${property.carpetArea}${/sq\.?\s*ft|sqft/i.test(property.carpetArea) ? '' : ' sqft'}`} />}
           {property.buildupArea && <InfoRow icon="grid-outline" label="Buildup Area" value={`${property.buildupArea}${/sq\.?\s*ft|sqft/i.test(property.buildupArea) ? '' : ' sqft'}`} />}
           {property.plotArea && <InfoRow icon="map-outline" label="Plot Area" value={property.plotArea} />}
@@ -160,7 +157,6 @@ export default function PropertyDetailScreen() {
           ) : null}
           {property.gmapsLink && <InfoRow icon="navigate-outline" label="Google Maps Link" value={property.gmapsLink} />}
           {property.notes && <InfoRow icon="document-text-outline" label="Notes" value={property.notes} />}
-          {dynamicEntries.map(([key, value]) => <InfoRow key={key} icon="information-circle-outline" label={prettyLabel(key)} value={displayValue(value)} />)}
         </View>
 
         {/* Contact Details */}
