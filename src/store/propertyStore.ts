@@ -4,6 +4,7 @@ import axiosInstance from '../api/axiosInstance';
 export interface Property {
   _id: string;
   projectName: string;
+  [key: string]: any;
   propertyType: string;
   location: string;
   price: string;
@@ -30,7 +31,7 @@ export interface Property {
   tenantPhone?: string;
   gmapsLink?: string;
   photos?: string[];
-  status: 'available' | 'sold' | 'rented';
+  status: 'available' | 'sold' | 'rented' | 'complete' | string;
   createdAt?: string;
 }
 
@@ -58,6 +59,13 @@ interface PropertyStore {
   exportCSV: (filters?: Record<string, string>) => Promise<string>;
 }
 
+const normalizeProperty = (p: any): Property => ({
+  ...p,
+  projectName: p?.projectName ?? p?.society ?? p?.['society/project'] ?? 'Unnamed Property',
+  propertyType: p?.propertyType ?? p?.flatConfig ?? p?.configuration ?? '',
+  status: p?.status ?? 'complete',
+});
+
 export const usePropertyStore = create<PropertyStore>((set, get) => ({
   properties: [],
   stats: { total: 0, available: 0, sold: 0 },
@@ -69,7 +77,7 @@ export const usePropertyStore = create<PropertyStore>((set, get) => ({
     try {
       const params = new URLSearchParams(filters as any);
       const res = await axiosInstance.get(`/property-crm/properties?${params.toString()}`);
-      set({ properties: res.data.properties || [], isLoading: false });
+      set({ properties: (res.data.properties || []).map(normalizeProperty), isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
     }
@@ -151,7 +159,7 @@ export const usePropertyStore = create<PropertyStore>((set, get) => ({
     if (found) return found;
     // Fallback: fetch from server
     const res = await axiosInstance.get(`/property-crm/properties/${id}`);
-    return res.data.property || res.data;
+    return normalizeProperty(res.data.property || res.data);
   },
 
   exportCSV: async (filters = {}) => {

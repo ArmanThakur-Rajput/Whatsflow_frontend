@@ -13,10 +13,10 @@ import { spacing } from '../../../theme/spacing';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const FLOOR_OPTIONS = ['Ground', ...Array.from({ length: 99 }, (_, i) => String(i + 1))];
-const PROPERTY_TYPES = ['Flat', 'Shop', 'Plot'];
-const PARKING_OPTIONS = ['Open', 'Covered', 'None'];
+const PROPERTY_TYPES = ['1RK', '1BHK', '2BHK', '3BHK', '4BHK+', 'Plot', 'Commercial'];
+const PARKING_OPTIONS = ['Open', 'Covered', 'None', '2 wheeler', '4 wheeler', 'Both', 'No Parking'];
 const WATER_OPTIONS   = ['Municipal Corporation', 'Gram Panchayat', 'Tanker', 'Boring'];
-const SANCTION_OPTIONS= ['Yes', 'No'];
+const SANCTION_OPTIONS= ['Yes', 'No', 'Gram Panchayat', 'Municipal Corporation', 'PMC', 'PCMC', 'PMRDA', 'NA'];
 const LIFT_OPTIONS    = ['Yes', 'No'];
 const FACING_OPTIONS  = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
 const AMENITY_OPTIONS = ['Swimming Pool', 'Gym', 'Clubhouse', 'Garden', 'Security', 'CCTV', 'Power Backup', 'Terrace', 'Visitor Parking', 'Kids Play Area'];
@@ -111,6 +111,24 @@ function formatPriceDisplay(raw: string): string {
   return '';
 }
 
+// ── Dynamic dropdown ─────────────────────────────────────────────────────────
+const DynamicDropdown = ({ options, value, onChange, placeholder }: { options: string[]; value: string; onChange: (v: string) => void; placeholder: string }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <View>
+      <TouchableOpacity style={styles.dropdownBtn} onPress={() => setOpen(!open)}>
+        <Text style={value ? styles.dropdownValue : styles.dropdownPlaceholder}>{value || placeholder}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
+      </TouchableOpacity>
+      {open && <View style={styles.dropdownList}><ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
+        {options.map((option) => <TouchableOpacity key={option} style={[styles.dropdownItem, value === option && styles.dropdownItemActive]} onPress={() => { onChange(option); setOpen(false); }}>
+          <Text style={[styles.dropdownItemText, value === option && { color: colors.primary, fontWeight: '600' }]}>{option}</Text>
+        </TouchableOpacity>)}
+      </ScrollView></View>}
+    </View>
+  );
+};
+
 // ── Floor Picker (scrollable dropdown) ───────────────────────────────────────
 const FloorPicker = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
   const [open, setOpen] = React.useState(false);
@@ -156,11 +174,13 @@ export default function AddPropertyScreen() {
   const editProp: Property | undefined = route.params?.property;
   const isEdit = !!editProp;
 
-  const { createProperty, updateProperty } = usePropertyStore();
+  const { createProperty, updateProperty, properties, fetchProperties } = usePropertyStore();
+  React.useEffect(() => { if (!properties.length) fetchProperties(); }, []);
+  const dynamicOptions = (field: string, defaults: string[]) => Array.from(new Set([ ...defaults, ...properties.map((p: any) => p?.[field]).filter((v: any) => typeof v === 'string' && v.trim()).map((v: string) => v.trim()) ]));
   const [saving, setSaving] = React.useState(false);
 
   // ── Form state ──────────────────────────────────────────────────────────────
-  const [projectName,  setProjectName]  = React.useState(editProp?.projectName  || '');
+  const [projectName,  setProjectName]  = React.useState((editProp as any)?.projectName || (editProp as any)?.society || (editProp as any)?.['society/project'] || '');
   const [propertyType, setPropertyType] = React.useState(editProp?.propertyType || '');
   const [location,     setLocation]     = React.useState(editProp?.location     || '');
   const [price,        setPrice]        = React.useState(editProp?.price        || '');
@@ -171,7 +191,7 @@ export default function AddPropertyScreen() {
   const [parking,      setParking]      = React.useState(editProp?.parking      || '');
   const [water,        setWater]        = React.useState(editProp?.water        || '');
   // optional
-  const [flatConfig,   setFlatConfig]   = React.useState(editProp?.flatConfig   || '');
+  // Flat configuration is now captured directly in Property Type.
   const [buildingArea, setBuildingArea] = React.useState(editProp?.buildingArea || '');
   const [flatsOnFloor, setFlatsOnFloor] = React.useState(editProp?.flatsOnFloor || '');
   const [lift,         setLift]         = React.useState(editProp?.lift         || '');
@@ -192,9 +212,6 @@ export default function AddPropertyScreen() {
     if (!location.trim())    return 'Location is required';
     if (!price.trim())       return 'Price is required';
     if (!floor)              return 'Floor is required';
-    if (!sanction)           return 'Sanction is required';
-    if (!parking)            return 'Parking is required';
-    if (!water)              return 'Water source is required';
     return null;
   };
 
@@ -206,7 +223,7 @@ export default function AddPropertyScreen() {
       projectName, propertyType, location, price, floor,
       carpetArea, buildupArea, sanction: sanction as any,
       parking: parking as any, water: water as any,
-      flatConfig, buildingArea, flatsOnFloor,
+      buildingArea, flatsOnFloor,
       lift: lift as any, wings, facing, amenities,
       ownerName, ownerPhone, tenantPhone, gmapsLink, notes,
     };
@@ -259,18 +276,9 @@ export default function AddPropertyScreen() {
             </Field>
 
             <Field label="Property Type" required>
-              <OptionPicker options={PROPERTY_TYPES} value={propertyType} onChange={setPropertyType} />
+              <DynamicDropdown options={dynamicOptions('propertyType', PROPERTY_TYPES)} value={propertyType} onChange={setPropertyType} placeholder="Select property type" />
             </Field>
 
-            {propertyType === 'Flat' && (
-              <Field label="Flat Configuration">
-                <OptionPicker
-                  options={['1RK', '1BHK', '2BHK', '3BHK', '4BHK', '4+BHK']}
-                  value={flatConfig}
-                  onChange={setFlatConfig}
-                />
-              </Field>
-            )}
 
             <Field label="Location" required>
               <TInput value={location} onChange={setLocation} placeholder="e.g. Baner, Pune" />
@@ -328,15 +336,15 @@ export default function AddPropertyScreen() {
             </View>
 
             <Field label="Sanction" required>
-              <OptionPicker options={SANCTION_OPTIONS} value={sanction} onChange={setSanction} />
+              <OptionPicker options={dynamicOptions('sanction', SANCTION_OPTIONS)} value={sanction} onChange={setSanction} />
             </Field>
 
             <Field label="Parking" required>
-              <OptionPicker options={PARKING_OPTIONS} value={parking} onChange={setParking} />
+              <OptionPicker options={dynamicOptions('parking', PARKING_OPTIONS)} value={parking} onChange={setParking} />
             </Field>
 
             <Field label="Water Source" required>
-              <OptionPicker options={WATER_OPTIONS} value={water} onChange={setWater} />
+              <OptionPicker options={dynamicOptions('water', WATER_OPTIONS)} value={water} onChange={setWater} />
             </Field>
 
           </View>
