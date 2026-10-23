@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, Dimensions, FlatList, Alert,
+  Image, ActivityIndicator, Dimensions, FlatList, Alert, Modal, Linking, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,13 +45,15 @@ export default function PropertyDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { propertyId } = route.params as { propertyId: string };
-  const { getPropertyById, deleteProperty } = usePropertyStore();
+  const { getPropertyById } = usePropertyStore();
 
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoWidth, setPhotoWidth] = useState(Math.max(260, Math.min(windowWidth - spacing.base * 2, 520)));
   const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
   const [activePhoto, setActivePhoto] = useState(0);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const photoUrls = (Array.isArray(property?.photos) ? property!.photos : [])
     .map((photo: any) => typeof photo === 'string' ? photo : (photo?.url || photo?.uri || photo?.location || ''))
@@ -66,24 +68,74 @@ export default function PropertyDetailScreen() {
     })
     .filter((url: string) => Boolean(url));
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Property',
-      'This will permanently delete this property and all its photos. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive', onPress: async () => {
-            try {
-              await deleteProperty(propertyId);
-              navigation.goBack();
-            } catch {
-              Alert.alert('Error', 'Failed to delete property');
-            }
-          },
-        },
-      ]
-    );
+  const makeFileName = (url: string, index: number) => {
+    const clean = url.split('?')[0].split('#')[0];
+    const ext = clean.match(/\.(jpg|jpeg|png|webp|gif|heic)$/i)?.[1] || 'jpg';
+    const base = (property?.projectName || 'property').replace(/[^a-z0-9-_]+/gi, '_');
+    return `${base}_photo_${index + 1}.${ext}`;
+  };
+
+  const downloadPhoto = async (url: string, index: number) => {
+    if (Platform.OS === 'web') {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Photo download failed');
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = makeFileName(url, index);
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+      } catch {
+        // If remote storage blocks browser fetch with CORS, open the original photo so it can still be saved.
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      await Linking.openURL(url);
+    }
+  };
+
+  const downloadAllPhotos = async () => {
+    if (!photoUrls.length) return;
+    setDownloading(true);
+    try {
+      for (let index = 0; index < photoUrls.length; index += 1) {
+        await downloadPhoto(photoUrls[index], index);
+        // Space browser download prompts so browsers don't suppress every file after the first.
+        if (Platform.OS === 'web' && index < photoUrls.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 350));
+        }
+      }
+    } catch {
+      Alert.alert('Download failed', 'Could not download all property photos. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const shareOnWhatsApp = async () => {
+    const details = [
+      '*KIN PROPERTY MANAGEMENT*',
+      '_Your Property, Our Trust_',
+      '',
+      `*${property?.projectName || 'Property'}*`,
+      `${property?.propertyType || ''}${property?.intent ? ` · ${property.intent === 'buy' ? 'For Sale' : 'For Rent'}` : ''}`,
+      property?.price ? `Price: ₹${property.price}` : '',
+      property?.location ? `Location: ${property.location}` : '',
+      property?.floor ? `Floor: ${property.floor}` : '',
+      property?.carpetArea ? `Carpet Area: ${property.carpetArea}` : '',
+      property?.sanction ? `Sanction: ${property.sanction}` : '',
+      property?.parking ? `Parking: ${property.parking}` : '',
+      property?.water ? `Water: ${property.water}` : '',
+      property?.notes ? `Details: ${property.notes}` : '',
+      '',
+      photoUrls[0] ? `Photos: ${photoUrls[0]}` : '',
+    ].filter(Boolean).join('\n');
+    const url = `https://wa.me/?text=${encodeURIComponent(details)}`;
+    try { await Linking.openURL(url); } catch { Alert.alert('Unable to open WhatsApp', 'Please check WhatsApp or your browser.'); }
   };
 
   useEffect(() => {
@@ -115,14 +167,7 @@ export default function PropertyDetailScreen() {
           <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{property.projectName}</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('AddProperty', { editId: property._id })}>
-            <Ionicons name="pencil-outline" size={18} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={18} color={colors.error} />
-          </TouchableOpacity>
-        </View>
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -149,12 +194,14 @@ export default function PropertyDetailScreen() {
                       <Text style={styles.photoFallbackText}>Photo could not be loaded</Text>
                     </View>
                   ) : (
-                    <Image
-                      source={{ uri: item }}
-                      style={styles.heroPhoto}
-                      resizeMode="cover"
-                      onError={() => setFailedPhotos((previous) => ({ ...previous, [item]: true }))}
-                    />
+                    <TouchableOpacity activeOpacity={0.92} onPress={() => setSelectedPhoto(item)} style={{ flex: 1 }}>
+                      <Image
+                        source={{ uri: item }}
+                        style={styles.heroPhoto}
+                        resizeMode="cover"
+                        onError={() => setFailedPhotos((previous) => ({ ...previous, [item]: true }))}
+                      />
+                    </TouchableOpacity>
                   )}
                   <View style={styles.photoCounter}><Text style={styles.photoCounterText}>{index + 1} / {photoUrls.length}</Text></View>
                 </View>
@@ -216,30 +263,51 @@ export default function PropertyDetailScreen() {
           </View>
         )}
 
-        {/* Actions */}
+        {/* Only the requested actions: WhatsApp and Photos */}
         <View style={styles.actionsCard}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => navigation.navigate('AddProperty', { editId: property._id })}
-          >
-            <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={shareOnWhatsApp}>
+            <Ionicons name="logo-whatsapp" size={20} color="#16A34A" />
+            <Text style={[styles.actionText, { color: '#16A34A' }]}>WhatsApp Send</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => navigation.navigate('UploadPropertyPhotos', { propertyId: property._id, isEdit: true })}
           >
-            <Ionicons name="images-outline" size={20} color={colors.success} />
-            <Text style={[styles.actionText, { color: colors.success }]}>Photos</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={20} color={colors.error} />
-            <Text style={[styles.actionText, { color: colors.error }]}>Delete</Text>
+            <Ionicons name="images-outline" size={20} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary }]}>Photos</Text>
           </TouchableOpacity>
         </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <Modal visible={Boolean(selectedPhoto)} transparent animationType="fade" onRequestClose={() => setSelectedPhoto(null)}>
+        <View style={styles.photoModalBackdrop}>
+          <View style={styles.photoModalCard}>
+            <View style={styles.photoModalHeader}>
+              <Text style={styles.photoModalTitle} numberOfLines={1}>{property.projectName}</Text>
+              <TouchableOpacity onPress={() => setSelectedPhoto(null)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            {selectedPhoto ? <Image source={{ uri: selectedPhoto }} style={styles.modalImage} resizeMode="contain" /> : null}
+            <View style={styles.downloadActions}>
+              <TouchableOpacity style={styles.downloadBtn} onPress={() => {
+                const index = Math.max(0, photoUrls.indexOf(selectedPhoto || ''));
+                if (selectedPhoto) downloadPhoto(selectedPhoto, index);
+              }}>
+                <Ionicons name="download-outline" size={19} color={colors.white} />
+                <Text style={styles.downloadBtnText}>Download This</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.downloadBtn, styles.downloadAllBtn]} onPress={downloadAllPhotos} disabled={downloading}>
+                {downloading ? <ActivityIndicator color={colors.white} /> : <Ionicons name="cloud-download-outline" size={19} color={colors.white} />}
+                <Text style={styles.downloadBtnText}>{downloading ? 'Downloading…' : `Download All Images (${photoUrls.length})`}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.downloadHint}>Download All saves each photo as a separate image file.</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -256,16 +324,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: { flex: 1, fontSize: typography.lg, fontWeight: typography.bold, color: colors.textPrimary, textAlign: 'center' },
-  headerActions: { flexDirection: 'row', gap: spacing.xs },
-  editBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center',
-  },
-  deleteBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: colors.error + '18', justifyContent: 'center', alignItems: 'center',
-  },
   content: { padding: spacing.base, gap: spacing.md },
+  photoModalBackdrop: { flex: 1, backgroundColor: 'rgba(8,15,25,0.86)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  photoModalCard: { width: '100%', maxWidth: 900, maxHeight: '92%', backgroundColor: colors.white, borderRadius: 18, padding: 14, gap: 12 },
+  photoModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  photoModalTitle: { flex: 1, fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
+  modalCloseBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  modalImage: { width: '100%', height: 430, backgroundColor: '#111827', borderRadius: 12 },
+  downloadActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  downloadBtn: { flex: 1, minWidth: 150, backgroundColor: colors.primary, borderRadius: 11, paddingVertical: 13, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  downloadAllBtn: { backgroundColor: '#16A34A' },
+  downloadBtnText: { color: colors.white, fontSize: typography.sm, fontWeight: typography.bold },
+  downloadHint: { color: colors.textSecondary, fontSize: typography.xs, textAlign: 'center' },
   photoGallery: { width: '100%', borderRadius: 16, marginBottom: 4, overflow: 'hidden' },
   photoStrip: { width: '100%', borderRadius: 16 },
   heroPhoto: { width: '100%', height: '100%' },
