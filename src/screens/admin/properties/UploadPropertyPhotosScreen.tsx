@@ -40,14 +40,20 @@ export default function UploadPropertyPhotosScreen() {
   }, []);
 
   const pickImages = async () => {
+    const remainingSlots = 10 - existingPhotos.length - newPhotos.length;
+    if (remainingSlots <= 0) {
+      Toast.show({ type: 'info', text1: 'Photo limit reached', text2: 'A property can have up to 10 photos.' });
+      return;
+    }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
+    if (status !== 'granted' && status !== 'limited') {
       Toast.show({ type: 'error', text1: 'Camera roll permission needed' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'] as any,
       allowsMultipleSelection: true,
+      selectionLimit: remainingSlots,
       quality: 0.75,
       // No base64 — we send the file directly via multipart
     });
@@ -57,7 +63,7 @@ export default function UploadPropertyPhotosScreen() {
         fileName: a.fileName || `photo_${Date.now()}_${i}.jpg`,
         mimeType: a.mimeType || 'image/jpeg',
       }));
-      setNewPhotos((prev) => [...prev, ...picked]);
+      setNewPhotos((prev) => [...prev, ...picked].slice(0, Math.max(0, 10 - existingPhotos.length)));
     }
   };
 
@@ -80,6 +86,10 @@ export default function UploadPropertyPhotosScreen() {
   };
 
   const handleSave = async () => {
+    if (!propertyId) {
+      Toast.show({ type: 'error', text1: 'Property ID missing', text2: 'Save the property first, then upload photos.' });
+      return;
+    }
     if (newPhotos.length === 0) {
       Toast.show({ type: 'success', text1: 'Property saved!' });
       navigation.navigate('PropertyDetail', { propertyId });
@@ -98,14 +108,16 @@ export default function UploadPropertyPhotosScreen() {
         } as any);
       });
 
+      // Let Axios/native adapter set the multipart boundary automatically.
       await axiosInstance.post(`/property-crm/properties/${propertyId}/photos`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined as any },
+        timeout: 120000,
       });
 
       Toast.show({ type: 'success', text1: `${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''} uploaded! 🎉` });
       navigation.navigate('PropertyDetail', { propertyId });
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Upload failed' });
+      Toast.show({ type: 'error', text1: 'Upload failed', text2: err?.response?.data?.message || err?.message || 'Check network and image storage configuration.' });
     } finally {
       setUploading(false);
     }
