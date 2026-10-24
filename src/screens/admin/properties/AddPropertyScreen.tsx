@@ -13,7 +13,8 @@ import { spacing } from '../../../theme/spacing';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const FLOOR_OPTIONS = ['Ground', ...Array.from({ length: 99 }, (_, i) => String(i + 1))];
-const PROPERTY_TYPES = ['Flat', 'Shop', 'Plot'];
+const PROPERTY_TYPES = ['1RK', '1BHK', '2BHK', '3BHK', '4BHK+', 'Shop', 'Plot', 'Commercial'];
+const FURNISHING_OPTIONS = ['Unfurnished', 'Semi-Furnished', 'Full Furnished'];
 const PARKING_OPTIONS = ['Open', 'Covered', 'None'];
 const WATER_OPTIONS   = ['Municipal Corporation', 'Gram Panchayat', 'Tanker', 'Boring'];
 const SANCTION_OPTIONS= ['Yes', 'No'];
@@ -214,6 +215,7 @@ export default function AddPropertyScreen() {
   const [tenantPhone,  setTenantPhone]  = React.useState(asText(editProp?.tenantPhone));
   const [gmapsLink,    setGmapsLink]    = React.useState(asText(editProp?.gmapsLink));
   const [notes,        setNotes]        = React.useState(asText(editProp?.notes));
+  const [furnishing,   setFurnishing]   = React.useState(asText((editProp as any)?.furnishing));
 
   // Navigation can reuse this screen instance when switching between properties.
   // Sync every field from the newly selected property so edit forms never show stale data.
@@ -224,7 +226,7 @@ export default function AddPropertyScreen() {
       setCarpetArea(''); setBuildupArea(''); setSanction(''); setParking(''); setWater('');
       setFlatConfig(''); setBuildingArea(''); setFlatsOnFloor(''); setLift(''); setWings('');
       setFacing(''); setAmenities([]); setOwnerName(''); setOwnerPhone(''); setTenantPhone('');
-      setGmapsLink(''); setNotes('');
+      setGmapsLink(''); setNotes(''); setFurnishing('');
       return;
     }
     setProjectName(propertyName(p));
@@ -249,6 +251,7 @@ export default function AddPropertyScreen() {
     setTenantPhone(asText(p.tenantPhone));
     setGmapsLink(asText(p.gmapsLink));
     setNotes(asText(p.notes));
+    setFurnishing(asText(p.furnishing));
   }, [route.params?.property?._id, route.params?.property?.id, route.params?.property]);
 
   const priceDisplay = formatPriceDisplay(price);
@@ -258,7 +261,7 @@ export default function AddPropertyScreen() {
     if (!propertyType)       return 'Property Type is required';
     if (!location.trim())    return 'Location is required';
     if (!price.trim())       return 'Price is required';
-    if (!floor)              return 'Floor is required';
+    if (!floor && propertyType !== 'Plot') return 'Floor is required';
     if (!sanction)           return 'Sanction is required';
     if (!parking)            return 'Parking is required';
     if (!water)              return 'Water source is required';
@@ -276,6 +279,7 @@ export default function AddPropertyScreen() {
       flatConfig, buildingArea, flatsOnFloor,
       lift: lift as any, wings, facing, amenities,
       ownerName, ownerPhone, tenantPhone, gmapsLink, notes,
+      furnishing: furnishing as any,
     };
 
     try {
@@ -326,25 +330,25 @@ export default function AddPropertyScreen() {
             </Field>
 
             <Field label="Property Type" required>
-              <OptionPicker options={PROPERTY_TYPES} value={propertyType} onChange={setPropertyType} />
+              <OptionPicker options={PROPERTY_TYPES} value={propertyType} onChange={(v) => {
+                setPropertyType(v);
+                // Reset floor when switching to/from Plot
+                if (v === 'Plot') setFloor('');
+              }} />
             </Field>
-
-            {propertyType === 'Flat' && (
-              <Field label="Flat Configuration">
-                <OptionPicker
-                  options={['1RK', '1BHK', '2BHK', '3BHK', '4BHK', '4+BHK']}
-                  value={flatConfig}
-                  onChange={setFlatConfig}
-                />
-              </Field>
-            )}
 
             <Field label="Location" required>
               <TInput value={location} onChange={setLocation} placeholder="e.g. Baner, Pune" />
             </Field>
 
-            <Field label="Floor" required>
-              <FloorPicker value={floor} onChange={setFloor} />
+            {propertyType !== 'Plot' && (
+              <Field label="Floor" required>
+                <FloorPicker value={floor} onChange={setFloor} />
+              </Field>
+            )}
+
+            <Field label="Furnishing">
+              <OptionPicker options={FURNISHING_OPTIONS} value={furnishing} onChange={setFurnishing} />
             </Field>
 
           </View>

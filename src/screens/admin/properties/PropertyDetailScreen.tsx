@@ -143,7 +143,7 @@ export default function PropertyDetailScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Photos */}
         {(property.photos?.length ?? 0) > 0 && (
           <FlatList
@@ -155,11 +155,14 @@ export default function PropertyDetailScreen() {
             style={styles.photoStrip}
             renderItem={({ item, index }) => (
               <TouchableOpacity activeOpacity={0.9} onPress={() => { setActivePhotoIndex(index); setPhotoViewerVisible(true); }}>
-                <Image source={{ uri: item }} resizeMode="cover" style={{ width: width - spacing.base * 2, height: 220, borderRadius: 16, backgroundColor: '#E8EEF3' }} />
+                <Image source={{ uri: item }} resizeMode="cover" style={{ width, height: 260, backgroundColor: '#E8EEF3' }} />
               </TouchableOpacity>
             )}
           />
         )}
+
+        {/* ── All detail content — padded ── */}
+        <View style={styles.detailContent}>
 
         {/* Status + Title */}
         <View style={styles.card}>
@@ -187,6 +190,7 @@ export default function PropertyDetailScreen() {
           {property.buildingArea && <InfoRow icon="business-outline" label="Building Area" value={property.buildingArea} />}
           {property.flatsOnFloor && <InfoRow icon="business-outline" label="Flats on Same Floor" value={property.flatsOnFloor} />}
           {property.wings && <InfoRow icon="git-branch-outline" label="Wings" value={property.wings} />}
+          {(property as any).furnishing && <InfoRow icon="bed-outline" label="Furnishing" value={(property as any).furnishing} />}
           {property.facing && <InfoRow icon="compass-outline" label="Facing" value={property.facing} />}
           {property.sanction && <InfoRow icon="document-attach-outline" label="Sanction" value={property.sanction} />}
           {property.parking && <InfoRow icon="car-outline" label="Parking" value={property.parking} />}
@@ -223,6 +227,8 @@ export default function PropertyDetailScreen() {
             <Text style={[styles.actionText, { color: colors.primary }]}>Photos</Text>
           </TouchableOpacity>
         </View>
+
+        </View>{/* end detailContent */}
 
         <Modal
           visible={photoViewerVisible}
@@ -304,8 +310,9 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: colors.error + '18', justifyContent: 'center', alignItems: 'center',
   },
-  content: { padding: spacing.base, gap: spacing.md },
-  photoStrip: { borderRadius: 16, marginBottom: 4 },
+  content: { gap: spacing.md, paddingBottom: spacing.xl },
+  photoStrip: { marginBottom: 4, marginHorizontal: -spacing.base },
+  detailContent: { paddingHorizontal: spacing.base },
   card: {
     backgroundColor: colors.white, borderRadius: 16, padding: spacing.base, gap: spacing.sm,
     elevation: 1, shadowColor: colors.shadow,
